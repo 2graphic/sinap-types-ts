@@ -1,0 +1,37 @@
+{
+  "name": "sinap-types-ts",
+  "description": "Bindings for synap-types from typescript",
+  "version": "0.0.1",
+  "readme": "README.md",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/2graphic/sinap-core"
+  },
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "files": [
+    "lib/!(test-)*"
+  ],
+  "scripts": {
+    "format": "tsfmt -r && tslint --fix --project .",
+    "lint": "tsfmt --verify && tslint --project .",
+    "build": "tsc -p .",
+    "test:nobuild": "mocha --colors lib/test-*.js",
+    "test": "npm run build && npm run test:nobuild",
+    "typings": "typings install",
+    "prepublish": "npm run typings && npm run lint && npm run test"
+  },
+  "devDependencies": {
+    "@types/node": "^7.0.12",
+    "chai": "^3.5.0",
+    "mocha": "^3.2.0",
+    "tslint": "^4.5.1",
+    "typescript": "^2.2.2",
+    "typescript-formatter": "^5.1.2",
+    "typings": "^2.1.0"
+  },
+  "dependencies": {
+    "sinap-types": "0.0.12"
+  }
+}
