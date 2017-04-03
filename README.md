@@ -1,4 +1,4 @@
-For more detains on sinap plugins see [https://www.github.com/2graphic/sinap-core](sinap-core). 
+For more detains on sinap plugins see [sinap-core](https://www.github.com/2graphic/sinap-core). 
 
 ## Implementing a plugin in TypeScript
 
