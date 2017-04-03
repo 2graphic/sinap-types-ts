@@ -1,7 +1,6 @@
 import * as ts from "typescript";
-import * as fs from "fs";
 import { File, FileService, readAsJson, Directory, Plugin } from "sinap-core";
-import { TypescriptPlugin } from ".";
+import { TypescriptPlugin } from "./plugin";
 
 const pluginFileKey = "plugin-file";
 const pluginKindKey = "kind";
@@ -27,24 +26,7 @@ export class InterpreterInfo {
 }
 
 export function loadPluginDir(directory: Directory, fileService: FileService): Promise<Plugin> {
-    return getInterpreterInfo(directory).then((interpreterInfo) => loadPlugin(interpreterInfo, fileService, {
-        amdLoader: `global = {};
-
-function getNS(a){
-    if (global[a] === undefined){
-        global[a] = {};
-    }
-    return global[a];
-}
-
-function define(name, requires, func){
-    let exports = getNS(name);
-    let args = requires.slice(2).map(getNS);
-    func(...[null, exports].concat(args));
-}`,
-        pluginStub: fs.readFileSync('test-support/plugin-stub.ts', "utf-8"),
-        pluginProgram: fs.readFileSync('test-support/plugin-program.ts', "utf-8"),
-    }));
+    return getInterpreterInfo(directory).then((interpreterInfo) => loadPlugin(interpreterInfo, fileService));
 }
 
 function getInterpreterInfo(directory: Directory): Promise<InterpreterInfo> {
@@ -84,25 +66,19 @@ export class CompilationResult {
 /**
  * An abstract representation of a plugin
  */
-function loadPlugin(pluginInfo: InterpreterInfo, fileService: FileService, pluginHelpers: {
-    pluginStub: string,
-    pluginProgram: string,
-    amdLoader: string
-}): Promise<Plugin> {
+function loadPlugin(pluginInfo: InterpreterInfo, fileService: FileService): Promise<Plugin> {
     const pluginLocation = pluginInfo.interp;
     let script: string | undefined = undefined;
     function emitter(_: string, content: string): void {
         // TODO: actually use AMD for cicular dependencies
-        script = pluginHelpers.amdLoader + "\n" + content;
+        script = content;
     }
     return pluginLocation.readData().then((pluginScript) => {
         const host = createCompilerHost(new Map([
-            ["plugin.ts", pluginScript],
-            ["plugin-stub.ts", pluginHelpers.pluginStub],
-            ["plugin-program.ts", pluginHelpers.pluginProgram],
+            ["plugin.ts", pluginScript]
         ]), options, emitter, fileService);
 
-        const program = ts.createProgram(["plugin-stub.ts"], options, host);
+        const program = ts.createProgram(["plugin.ts"], options, host);
         // TODO: only compute if asked for.
         const results = {
             global: program.getGlobalDiagnostics(),

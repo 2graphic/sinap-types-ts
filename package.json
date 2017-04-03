@@ -1,12 +1,12 @@
 {
-  "name": "sinap-types-ts",
+  "name": "sinap-typescript",
   "description": "Bindings for synap-types from typescript",
   "version": "0.0.1",
   "readme": "README.md",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/2graphic/sinap-core"
+    "url": "https://github.com/2graphic/sinap-typescript"
   },
   "main": "lib/index.js",
   "typings": "lib/index",
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "sinap-types": "0.0.14",
-    "sinap-core": "https://github.com/2graphic/sinap-core/releases/download/types-1/sinap-core-0.0.0-development.tgz",
+    "sinap-core": "3.0.1",
     "typescript": "https://github.com/Sheyne/TypeScript/releases/download/sheyne-2.3.0-beta1/typescript-2.3.0.tgz"
   }
 }
