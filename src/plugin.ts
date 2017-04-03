@@ -1,6 +1,6 @@
 import * as ts from "typescript";
 import * as Core from "sinap-core";
-import { Type } from "sinap-types";
+import { Type, Value } from "sinap-types";
 import { CompilationResult } from "./plugin-loader";
 import { TypeScriptTypeEnvironment } from "./typescript-environment";
 import { TypescriptProgram } from "./program";
@@ -60,6 +60,15 @@ export class TypescriptPlugin implements Core.Plugin {
         this.graphType = new Type.Intersection([this.environment.lookupType("Graph", pluginSourceFile), Core.drawableGraphType]);
         this.stateType = this.environment.lookupType("State", pluginSourceFile) as Type.CustomObject;
     }
+
+    validateEdge(src: Value.Intersection, dst?: Value.Intersection, like?: Value.Intersection): boolean {
+        src;
+        dst;
+        like;
+        // TODO: implement
+        return true;
+    }
+
 
     makeProgram(model: Core.Model): Core.Program {
         return new TypescriptProgram(model, this);

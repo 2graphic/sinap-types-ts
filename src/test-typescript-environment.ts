@@ -54,5 +54,9 @@ describe("TS converter", () => {
         const SetN = env.lookupType("SetN", file) as Value.SetType;
         expect(SetN).to.be.instanceof(Value.SetType);
         expect(SetN.typeParameter.equals(new Type.Primitive("number"))).to.be.true;
+
+        // const H = env.lookupType("H", file) as Type.CustomObject;
+        // expect(H).to.instanceof(Type.CustomObject);
+        // expect(H.members.get("i")).to.instanceof(Type.Record);
     });
 });
