@@ -20,3 +20,8 @@ class D {
 
 type T = A | string;
 type U = B & D;
+
+type ArrayS1 = Array<string>;
+type ArrayS2 = string[];
+type MapNS = Map<number, string>;
+type SetN = Set<number>;

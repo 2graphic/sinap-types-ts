@@ -20,7 +20,7 @@ export class TypeScriptTypeEnvironment {
 
     constructor(public checker: ts.TypeChecker) {
         for (const key in es6Builtins) {
-            this.es6Types[key] = checker.lookupGlobalType(key);
+            this.es6Types[key] = checker.lookupGlobalType(key + "Constructor");
         }
     }
 
@@ -28,12 +28,15 @@ export class TypeScriptTypeEnvironment {
         return this.getType(this.checker.lookupTypeAt(symbol, file));
     }
 
-    getType(type: ts.Type): Type.Type {
+    getType(typeOriginal: ts.Type): Type.Type {
         // this trick (getting the symbol and going back to the type)
         // helps get consistant pointer equal type object from typescript
-        const sym = type.getSymbol();
+        const sym = typeOriginal.getSymbol();
+        let type: ts.Type;
         if (sym) {
             type = this.checker.getTypeOfSymbol(sym);
+        } else {
+            type = typeOriginal;
         }
         const t = this.types.get(type);
         if (t) {
@@ -50,7 +53,7 @@ export class TypeScriptTypeEnvironment {
             for (const key of (Object.keys(es6Builtins) as es6BuiltinNames[])) {
                 const tsType = this.es6Types[key];
                 if (tsType.getSymbol() === type.getSymbol()) {
-                    const args: ts.Type[] = (type as any).typeArguments;
+                    const args: ts.Type[] = (typeOriginal as any).typeArguments;
                     if (key === "Map") {
                         wrapped = new es6Builtins[key](this.getType(args[0]), this.getType(args[1]));
                     } else {

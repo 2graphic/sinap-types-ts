@@ -1,7 +1,7 @@
 /// <reference path="../typings/index.d.ts" />
 import * as ts from "typescript";
 import { TypeScriptTypeEnvironment } from ".";
-import { Type } from "sinap-types";
+import { Type, Value } from "sinap-types";
 import { expect } from "chai";
 
 describe("TS converter", () => {
@@ -40,5 +40,19 @@ describe("TS converter", () => {
         expect(U).to.instanceof(Type.Intersection);
         expect(U.types.has(B)).to.be.true;
         expect([...U.members.keys()]).to.deep.equal(["a", "b", "some10", "someTrue", "gah"]);
+
+        const ArrayS1 = env.lookupType("ArrayS1", file) as Value.ArrayType;
+        expect(ArrayS1).to.be.instanceof(Value.ArrayType);
+        expect(ArrayS1.typeParameter.equals(new Type.Primitive("string"))).to.be.true;
+        const ArrayS2 = env.lookupType("ArrayS2", file) as Value.ArrayType;
+        expect(ArrayS2).to.be.instanceof(Value.ArrayType);
+        expect(ArrayS2.typeParameter.equals(new Type.Primitive("string"))).to.be.true;
+        const MapNS = env.lookupType("MapNS", file) as Value.MapType;
+        expect(MapNS).to.be.instanceof(Value.MapType);
+        expect(MapNS.keyType.equals(new Type.Primitive("number"))).to.be.true;
+        expect(MapNS.valueType.equals(new Type.Primitive("string"))).to.be.true;
+        const SetN = env.lookupType("SetN", file) as Value.SetType;
+        expect(SetN).to.be.instanceof(Value.SetType);
+        expect(SetN.typeParameter.equals(new Type.Primitive("number"))).to.be.true;
     });
 });
