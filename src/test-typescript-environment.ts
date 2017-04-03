@@ -27,7 +27,7 @@ describe("TS converter", () => {
         expect((B.members.get("someTrue") as Type.Literal).value).to.equal(true);
         expect(B.members.get("b")).to.instanceof(Type.Literal);
         expect((B.members.get("b") as Type.Literal).value).to.equal("Hi");
-        expect(B.prettyNames.get("b")).to.equal("Hi");
+        expect(B.prettyName("b")).to.equal("Hi");
         expect(B.superType).to.equal(A);
         expect(A.superType).to.equal(null);
 
@@ -61,7 +61,7 @@ describe("TS converter", () => {
 
         const Priv = env.lookupType("Priv", file) as Type.CustomObject;
         expect(Priv).to.instanceof(Type.CustomObject);
-        expect(Priv.visibility.get("x")).to.be.false;
-        expect(Priv.visibility.get("y")).to.be.true;
+        expect(Priv.isVisible("x")).to.be.false;
+        expect(Priv.isVisible("y")).to.be.true;
     });
 });
