@@ -42,11 +42,12 @@ export class TypeScriptTypeEnvironment {
         // this trick (getting the symbol and going back to the type)
         // helps get consistant pointer equal type object from typescript
         const sym = typeOriginal.getSymbol();
-        let type: ts.Type;
+        let type = typeOriginal;
         if (sym) {
-            type = this.checker.getTypeOfSymbol(sym);
-        } else {
-            type = typeOriginal;
+            const t = this.checker.getTypeOfSymbol(sym);
+            if (t && !(t.flags & ts.TypeFlags.Any)) {
+                type = t;
+            }
         }
         const t = this.types.get(type);
         if (t) {
@@ -61,7 +62,6 @@ export class TypeScriptTypeEnvironment {
             wrapped = new Type.Intersection((type as ts.IntersectionType).types.map(t => this.getType(t)));
         } else if (type.flags & ts.TypeFlags.Object) ObjectIf: {
             const objectType = type as ts.ObjectType;
-
             for (const key of (Object.keys(es6Builtins) as es6BuiltinNames[])) {
                 const tsType = this.es6Types[key];
                 if (tsType.getSymbol() === type.getSymbol()) {
@@ -83,6 +83,7 @@ export class TypeScriptTypeEnvironment {
             }
 
             const members = new Map<string, Type.Type>();
+            const visibility = new Map<string, boolean>();
             const prettyNames = new Map<string, string>();
             const tsMembers = objectType.getSymbol().members;
             if (!tsMembers) {
@@ -93,10 +94,20 @@ export class TypeScriptTypeEnvironment {
                     return;
                 }
                 members.set(key, this.getType(this.checker.getTypeOfSymbol(element)));
+
                 const docComment = element.getDocumentationComment();
                 if (docComment && docComment.length > 0) {
                     prettyNames.set(key, docComment[0].text.trim());
                 }
+
+                const valueDeclaration = element.valueDeclaration;
+                if (valueDeclaration) {
+                    const modifiers = valueDeclaration.modifiers;
+                    if (modifiers) {
+                        visibility.set(key, modifiers.filter(x => x.kind === ts.SyntaxKind.PrivateKeyword).length === 0);
+                    }
+                }
+
             });
 
             let superType: null | Type.CustomObject = null;
@@ -115,8 +126,11 @@ export class TypeScriptTypeEnvironment {
                     }
                 }
             }
-
-            wrapped = new Type.CustomObject(objectType.getSymbol().name, superType, members, undefined, prettyNames);
+            if (objectType.getSymbol().flags & ts.SymbolFlags.Class) {
+                wrapped = new Type.CustomObject(objectType.getSymbol().name, superType, members, undefined, prettyNames, visibility);
+            } else {
+                wrapped = new Type.Record("Record", members, prettyNames, visibility);
+            }
         } else if (type.flags & ts.TypeFlags.String) {
             wrapped = new Type.Primitive("string");
         } else if (type.flags & ts.TypeFlags.Number) {
