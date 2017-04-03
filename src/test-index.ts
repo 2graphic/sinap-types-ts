@@ -1,8 +1,9 @@
 /// <reference path="../typings/index.d.ts" />
 import * as ts from "typescript";
-import { TypeScriptTypeEnvironment } from ".";
+import { TypeScriptTypeEnvironment, loadPluginDir } from ".";
 import { Type, Value } from "sinap-types";
 import { expect } from "chai";
+import { LocalFileService } from "./test-files-mock";
 
 describe("TS converter", () => {
     it("converts example1", () => {
@@ -54,5 +55,29 @@ describe("TS converter", () => {
         const SetN = env.lookupType("SetN", file) as Value.SetType;
         expect(SetN).to.be.instanceof(Value.SetType);
         expect(SetN.typeParameter.equals(new Type.Primitive("number"))).to.be.true;
+    });
+});
+
+describe("Load Plugins", () => {
+
+    it("handles DFA", () => {
+        const fs = new LocalFileService();
+        return fs.directoryByName(fs.joinPath("test-support", "dfa"))
+            .then((directory) => loadPluginDir(directory, fs))
+            .then((plugin) => {
+                expect(plugin.nodesType.types.size).to.equal(1);
+                const nodeType = plugin.nodesType.types.values().next().value as Type.Intersection;
+                expect(nodeType).to.be.instanceof(Type.Intersection);
+                expect(nodeType.members.get("isAcceptState")!.equals(new Type.Primitive("boolean"))).to.be.true;
+
+
+                expect(plugin.stateType).to.be.instanceof(Type.CustomObject);
+                expect(plugin.stateType.members.get("inputLeft")!.equals(new Type.Primitive("string"))).to.be.true;
+
+                expect(plugin.graphType).to.be.instanceof(Type.Intersection);
+                expect(plugin.graphType.members.get("nodes")!
+                    .equals(new Value.ArrayType(nodeType)))
+                    .to.be.true;
+            });
     });
 });

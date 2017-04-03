@@ -1,5 +1,8 @@
 import * as ts from "typescript";
+import * as Core from "sinap-core";
 import { Type, Value } from "sinap-types";
+import { CompilationResult, InterpreterInfo } from "./plugin-loader";
+export { loadPluginDir } from "./plugin-loader";
 
 type es6BuiltinNames = "Map" | "Set" | "Array";
 const es6Builtins = {
@@ -7,6 +10,67 @@ const es6Builtins = {
     "Set": Value.SetType,
     "Array": Value.ArrayType,
 };
+
+export class TypescriptPlugin implements Core.Plugin {
+    stateType: Type.CustomObject;
+    nodesType: Type.Union;
+    edgesType: Type.Union;
+    graphType: Type.Intersection;
+    argumentTypes: Type.Type[];
+    resultType: Type.Type;
+    private environment: TypeScriptTypeEnvironment;
+
+    private getFunctionSignatures(name: string, node: ts.Node, checker: ts.TypeChecker) {
+        const functionSymbol = checker.getSymbolsInScope(node, ts.SymbolFlags.Function)
+            .filter((a) => a.name === name)[0];
+        if (functionSymbol === undefined) {
+            throw new Error(`function "${name}" not found`);
+        }
+        const functionType = checker.getTypeOfSymbol(functionSymbol);
+        const sig = functionType.getCallSignatures();
+        return sig.map(s =>
+            [
+                s.getParameters().map(p => this.environment.getType(checker.getTypeOfSymbol(p))),
+                this.environment.getType(s.getReturnType())
+            ] as [Type.Type[], Type.Type]);
+    }
+
+    constructor(program: ts.Program, readonly compilationResult: CompilationResult, readonly pluginInfo: InterpreterInfo) {
+        const checker = program.getTypeChecker();
+        this.environment = new TypeScriptTypeEnvironment(checker);
+        const pluginSourceFile = program.getSourceFile("plugin.ts");
+
+        const startTypes = this.getFunctionSignatures("start", program.getSourceFile("plugin.ts"), checker);
+        if (startTypes.length !== 1) {
+            throw new Error("don't overload the start function");
+        }
+        this.argumentTypes = startTypes[0][0];
+        this.resultType = startTypes[0][1];
+
+        const nodesType = this.environment.lookupType("Nodes", pluginSourceFile);
+        if (nodesType instanceof Type.Union) {
+            this.nodesType = nodesType;
+        } else {
+            this.nodesType = new Type.Union([nodesType]);
+        }
+        this.nodesType = new Type.Union([...this.nodesType.types].map(t => new Type.Intersection([t, Core.drawableNodeType])));
+
+        const edgesType = this.environment.lookupType("Edges", pluginSourceFile);
+        if (edgesType instanceof Type.Union) {
+            this.edgesType = edgesType;
+        } else {
+            this.edgesType = new Type.Union([edgesType]);
+        }
+        this.edgesType = new Type.Union([...this.edgesType.types].map(t => new Type.Intersection([t, Core.drawableEdgeType])));
+
+        this.graphType = new Type.Intersection([this.environment.lookupType("Graph", pluginSourceFile), Core.drawableGraphType]);
+        this.stateType = this.environment.lookupType("State", pluginSourceFile) as Type.CustomObject;
+    }
+
+    makeProgram(model: Core.Model): Core.Program {
+        return model as any;
+    }
+}
 
 /**
  * Store a mapping of typescript types to our wrappers.
@@ -17,6 +81,7 @@ const es6Builtins = {
 export class TypeScriptTypeEnvironment {
     private types = new Map<ts.Type, Type.Type>();
     private es6Types: { [a: string]: ts.Type } = {};
+    private chores: (() => void)[] = [];
 
     constructor(public checker: ts.TypeChecker) {
         for (const key in es6Builtins) {
@@ -29,6 +94,15 @@ export class TypeScriptTypeEnvironment {
     }
 
     getType(typeOriginal: ts.Type): Type.Type {
+        const value = this.getTypeInner(typeOriginal);
+        while (this.chores.length > 0) {
+            this.chores.shift()!();
+        }
+        return value;
+    }
+
+
+    getTypeInner(typeOriginal: ts.Type): Type.Type {
         // this trick (getting the symbol and going back to the type)
         // helps get consistant pointer equal type object from typescript
         const sym = typeOriginal.getSymbol();
@@ -43,7 +117,9 @@ export class TypeScriptTypeEnvironment {
             return t;
         }
         let wrapped: Type.Type;
-        if (type.flags & ts.TypeFlags.Union) {
+        if (type.flags & ts.TypeFlags.Boolean) {
+            wrapped = new Type.Primitive("boolean");
+        } else if (type.flags & ts.TypeFlags.Union) {
             wrapped = new Type.Union((type as ts.UnionType).types.map(t => this.getType(t)));
         } else if (type.flags & ts.TypeFlags.Intersection) {
             wrapped = new Type.Intersection((type as ts.IntersectionType).types.map(t => this.getType(t)));
@@ -55,9 +131,16 @@ export class TypeScriptTypeEnvironment {
                 if (tsType.getSymbol() === type.getSymbol()) {
                     const args: ts.Type[] = (typeOriginal as any).typeArguments;
                     if (key === "Map") {
-                        wrapped = new es6Builtins[key](this.getType(args[0]), this.getType(args[1]));
+                        wrapped = new es6Builtins[key](null as any, null as any);
+                        this.chores.push(() => {
+                            (wrapped as any).keyType = this.getType(args[0]);
+                            (wrapped as any).valueType = this.getType(args[1]);
+                        });
                     } else {
-                        wrapped = new es6Builtins[key](this.getType(args[0]));
+                        wrapped = new es6Builtins[key](null as any);
+                        this.chores.push(() => {
+                            (wrapped as any).typeParameter = this.getType(args[0]);
+                        });
                     }
                     break ObjectIf;
                 }
@@ -70,13 +153,16 @@ export class TypeScriptTypeEnvironment {
                 throw new Error("work on this");
             }
             tsMembers.forEach((element, key) => {
+                if (element.name === "__constructor") {
+                    return;
+                }
                 members.set(key, this.getType(this.checker.getTypeOfSymbol(element)));
                 const docComment = element.getDocumentationComment();
                 if (docComment && docComment.length > 0) {
                     prettyNames.set(key, docComment[0].text.trim());
                 }
             });
-            // todo: get super type
+
             let superType: null | Type.CustomObject = null;
             const declaration = objectType.getSymbol().valueDeclaration;
             if (declaration && (declaration as ts.ClassDeclaration).heritageClauses) {
@@ -99,14 +185,12 @@ export class TypeScriptTypeEnvironment {
             wrapped = new Type.Primitive("string");
         } else if (type.flags & ts.TypeFlags.Number) {
             wrapped = new Type.Primitive("number");
-        } else if (type.flags & ts.TypeFlags.Boolean) {
-            wrapped = new Type.Primitive("boolean");
         } else if (type.flags & ts.TypeFlags.StringLiteral) {
             wrapped = new Type.Literal((type as any).text);
         } else if (type.flags & ts.TypeFlags.NumberLiteral) {
             wrapped = new Type.Literal(Number((type as any).text));
         } else if (type.flags & ts.TypeFlags.BooleanLiteral) {
-            wrapped = new Type.Literal(Boolean((type as any).intrinsicName));
+            wrapped = new Type.Literal((type as any).intrinsicName === "true");
         } else {
             throw new Error("unknown type");
         }

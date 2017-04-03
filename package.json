@@ -31,7 +31,8 @@
     "typings": "^2.1.0"
   },
   "dependencies": {
-    "sinap-types": "0.0.12",
+    "sinap-types": "0.0.14",
+    "sinap-core": "https://github.com/2graphic/sinap-core/releases/download/types-1/sinap-core-0.0.0-development.tgz",
     "typescript": "https://github.com/Sheyne/TypeScript/releases/download/sheyne-2.3.0-beta1/typescript-2.3.0.tgz"
   }
 }
