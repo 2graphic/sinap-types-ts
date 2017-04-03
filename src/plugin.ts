@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import * as Core from "sinap-core";
 import { Type } from "sinap-types";
-import { CompilationResult, InterpreterInfo } from "./plugin-loader";
+import { CompilationResult } from "./plugin-loader";
 import { TypeScriptTypeEnvironment } from "./typescript-environment";
 import { TypescriptProgram } from "./program";
 
@@ -29,7 +29,7 @@ export class TypescriptPlugin implements Core.Plugin {
             ] as [Type.Type[], Type.Type]);
     }
 
-    constructor(program: ts.Program, readonly compilationResult: CompilationResult, readonly pluginInfo: InterpreterInfo) {
+    constructor(program: ts.Program, readonly compilationResult: CompilationResult, readonly pluginInfo: Core.InterpreterInfo) {
         const checker = program.getTypeChecker();
         this.environment = new TypeScriptTypeEnvironment(checker);
         const pluginSourceFile = program.getSourceFile("plugin.ts");

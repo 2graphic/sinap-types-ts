@@ -1,17 +1,20 @@
 /// <reference path="../typings/index.d.ts" />
-import { loadPluginDir } from ".";
+import { TypescriptPluginLoader } from ".";
 import { Type, Value } from "sinap-types";
 import { expect } from "chai";
 import { LocalFileService } from "./test-files-mock";
-import { Model, Plugin } from "sinap-core";
+import { Model, Plugin, PluginLoaderManager } from "sinap-core";
 
 describe("Load Plugins", () => {
+
+    const manager = new PluginLoaderManager();
+    manager.loaders.set("typescript", new TypescriptPluginLoader());
 
     let dfa: Plugin;
     before(() => {
         const fs = new LocalFileService();
         return fs.directoryByName(fs.joinPath("test-support", "dfa"))
-            .then((directory) => loadPluginDir(directory, fs))
+            .then((directory) => manager.loadPlugin(directory, fs))
             .then((plugin) => {
                 dfa = plugin;
             });

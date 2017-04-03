@@ -1,1 +1,1 @@
-export { loadPluginDir } from "./plugin-loader";
+export { TypescriptPluginLoader } from "./plugin-loader";
