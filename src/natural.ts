@@ -114,7 +114,6 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
         return value;
     } else if (typeOfV === "string" || typeOfV === "number" || typeOfV === "boolean") {
         const value = new Value.Primitive(new Type.Primitive(typeOfV), env, v);
-        transformation.set(v, value);
         return value;
     } else {
         throw new Error(`cannot make ${v} a value`);
