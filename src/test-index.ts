@@ -38,6 +38,8 @@ describe("Load Plugins", () => {
     });
 
     it("builds correct unwrapped structure", () => {
+        expect(dfa.resultType.equals(new Type.Primitive("boolean"))).to.be.true;
+
         const model = new Model(dfa);
         // for reference: makeNode(NodeKind)
         const q0 = model.makeNode();
@@ -111,7 +113,7 @@ describe("Load Plugins", () => {
 
         const prog = dfa.makeProgram(model);
 
-        for (let x = 0; x < 1000; x++) {
+        for (let x = 0; x < 100000; x++) {
             const str = x.toString(2);
             const result = prog.run([Value.makePrimitive(prog.environment, str)]);
             if (result.error) {
