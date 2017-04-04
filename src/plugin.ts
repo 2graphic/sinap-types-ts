@@ -40,9 +40,9 @@ function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
 
 export class TypescriptPlugin implements Core.Plugin {
     stateType: Type.CustomObject;
-    nodesType: Type.Union;
-    edgesType: Type.Union;
-    graphType: Type.Intersection;
+    nodesType: Core.ElementUnion;
+    edgesType: Core.ElementUnion;
+    graphType: Core.ElementType;
     argumentTypes: Type.Type[];
     resultType: Type.Type;
     private environment: TypeScriptTypeEnvironment;
@@ -67,7 +67,11 @@ export class TypescriptPlugin implements Core.Plugin {
         this.environment = new TypeScriptTypeEnvironment(checker);
         const pluginSourceFile = program.getSourceFile("plugin.ts");
 
-        this.graphType = new Type.Intersection([this.environment.lookupType("Graph", pluginSourceFile), Core.drawableGraphType]);
+        const pluginGraphType = this.environment.lookupType("Graph", pluginSourceFile);
+        if (!(pluginGraphType instanceof Type.CustomObject)) {
+            throw new Error("Graph must be an object type");
+        }
+        this.graphType = new Core.ElementType(pluginGraphType, Core.drawableGraphType);
         this.stateType = this.environment.lookupType("State", pluginSourceFile) as Type.CustomObject;
 
         const startTypes = this.getFunctionSignatures("start", program.getSourceFile("plugin.ts"), checker);
@@ -81,21 +85,25 @@ export class TypescriptPlugin implements Core.Plugin {
         this.argumentTypes = startTypes[0][0].slice(1);
         this.resultType = mergeUnions(this.stateType, startTypes[0][1], stepTypes[0][1]);
 
-        const nodesType = this.environment.lookupType("Nodes", pluginSourceFile);
-        if (nodesType instanceof Type.Union) {
-            this.nodesType = nodesType;
-        } else {
-            this.nodesType = new Type.Union([nodesType]);
-        }
-        this.nodesType = new Type.Union([...this.nodesType.types].map(t => new Type.Intersection([t, Core.drawableNodeType])));
+        const typesToUnion = (drawable: Type.CustomObject, kind: string) => {
+            const type = this.environment.lookupType(kind, pluginSourceFile);
+            let types: Type.Type[];
+            if (type instanceof Type.Union) {
+                types = [...type.types];
+            } else {
+                types = [type];
+            }
 
-        const edgesType = this.environment.lookupType("Edges", pluginSourceFile);
-        if (edgesType instanceof Type.Union) {
-            this.edgesType = edgesType;
-        } else {
-            this.edgesType = new Type.Union([edgesType]);
-        }
-        this.edgesType = new Type.Union([...this.edgesType.types].map(t => new Type.Intersection([t, Core.drawableEdgeType])));
+            return new Core.ElementUnion(new Set(types.map(t => {
+                if (!(t instanceof Type.CustomObject)) {
+                    throw new Error(`all members of ${kind} must be objects`);
+                }
+                return new Core.ElementType(t, drawable);
+            })));
+        };
+
+        this.nodesType = typesToUnion(Core.drawableNodeType, "Nodes");
+        this.edgesType = typesToUnion(Core.drawableEdgeType, "Edges");
     }
 
     validateEdge(src: Value.Intersection, dst?: Value.Intersection, like?: Value.Intersection): boolean {

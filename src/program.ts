@@ -6,6 +6,8 @@ import { naturalToValue, valueToNatural } from "./natural";
 
 
 export class TypescriptProgram implements Core.Program {
+    private toNatural: (value: Value.Value) => any;
+    private toValue: (value: any) => Value.Value;
     private program: DFAProgram;
     readonly environment = new Value.Environment();
 
@@ -32,17 +34,6 @@ export class TypescriptProgram implements Core.Program {
         model.graph.set("nodes", nodes);
         model.graph.set("edges", edges);
         this.program = new DFAProgram(model, plugin, this.environment);
-    };
-
-    run(a: Value.Value[]): { steps: Value.CustomObject[], result?: Value.Value, error?: Value.Primitive } {
-        if (a.length !== this.plugin.argumentTypes.length) {
-            throw new Error("Program.run: incorrect arity");
-        }
-        a.forEach((v, i) => {
-            if (!Type.isSubtype(v.type, this.plugin.argumentTypes[i])) {
-                throw new Error(`Program.run argument at index: ${i} is of incorrect type`);
-            }
-        });
 
         const dfaNodes = this.plugin.nodesType.types.values().next().value as Type.Intersection;
         const dfaNode = dfaNodes.types.values().next().value;
@@ -55,12 +46,25 @@ export class TypescriptProgram implements Core.Program {
             [this.plugin.graphType.types.values().next().value, DFAGraph],
         ];
 
-        const toNatural = valueToNatural(new Map(rules));
-        const toValue = naturalToValue(this.environment,
+        this.toNatural = valueToNatural(new Map(rules));
+        this.toValue = naturalToValue(this.environment,
             rules.map((([a, b]) => [b, a] as [Function, Type.CustomObject])));
 
-        const unwrappedGraph = toNatural(this.model.graph);
-        const unwrappedInputs = a.map(v => toNatural(v));
+    };
+
+    run(a: Value.Value[]): { steps: Value.CustomObject[], result?: Value.Value, error?: Value.Primitive } {
+        if (a.length !== this.plugin.argumentTypes.length) {
+            throw new Error("Program.run: incorrect arity");
+        }
+        a.forEach((v, i) => {
+            if (!Type.isSubtype(v.type, this.plugin.argumentTypes[i])) {
+                throw new Error(`Program.run argument at index: ${i} is of incorrect type`);
+            }
+        });
+
+
+        const unwrappedGraph = this.toNatural(this.model.graph);
+        const unwrappedInputs = a.map(v => this.toNatural(v));
 
         let state: any;
         try {
@@ -70,14 +74,14 @@ export class TypescriptProgram implements Core.Program {
         }
         const steps: Value.CustomObject[] = [];
         while (state instanceof DFAState) {
-            steps.push(toValue(state) as Value.CustomObject);
+            steps.push(this.toValue(state) as Value.CustomObject);
             try {
                 state = this.program.step(state);
             } catch (err) {
                 return { steps: steps, error: Value.makePrimitive(this.environment, err) };
             }
         }
-        return { steps: steps, result: toValue(state) };
+        return { steps: steps, result: this.toValue(state) };
     }
 
     validate() {
