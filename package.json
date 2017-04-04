@@ -1,7 +1,7 @@
 {
   "name": "sinap-typescript",
   "description": "Bindings for synap-types from typescript",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "readme": "README.md",
   "license": "MIT",
   "repository": {
@@ -26,13 +26,14 @@
     "@types/node": "^7.0.12",
     "chai": "^3.5.0",
     "mocha": "^3.2.0",
+    "rewire": "^2.5.2",
     "tslint": "^4.5.1",
     "typescript-formatter": "^5.1.2",
     "typings": "^2.1.0"
   },
   "dependencies": {
     "sinap-types": "~0.0.21",
-    "sinap-core": "~3.0.6",
+    "sinap-core": "~3.0.13",
     "typescript": "https://github.com/Sheyne/TypeScript/releases/download/sheyne-2.3.0-beta1/typescript-2.3.0.tgz"
   }
 }
