@@ -1,6 +1,33 @@
 import * as ts from "typescript";
-import { FileService, InterpreterInfo, Plugin, PluginLoader } from "sinap-core";
+import { InterpreterInfo, Plugin, PluginLoader } from "sinap-core";
 import { TypescriptPlugin } from "./plugin";
+import * as fs from "fs";
+import * as path from "path";
+
+class NodePromise<T> {
+    readonly promise: Promise<T>;
+    readonly cb: (err: any, obj: T) => void;
+    private _resolve: (res: T) => void;
+    private _reject: (err: any) => void;
+
+    constructor() {
+        this.promise = new Promise<T>((resolve, reject) => {
+            this._resolve = resolve;
+            this._reject = reject;
+        });
+
+        this.cb = (err, obj) => {
+            if (err) this._reject(err);
+            else this._resolve(obj);
+        };
+    }
+}
+
+function readFile(file: string): Promise<string> {
+    const result = new NodePromise<string>();
+    fs.readFile(file, "utf8", result.cb);
+    return result.promise;
+}
 
 const options: ts.CompilerOptions = {
     noEmitOnError: false,
@@ -24,17 +51,21 @@ export class CompilationResult {
 }
 
 export class TypescriptPluginLoader implements PluginLoader {
-    loadPlugin(pluginInfo: InterpreterInfo, fileService: FileService): Promise<Plugin> {
-        const pluginLocation = pluginInfo.interp;
+    get name(): string {
+        return "typescript";
+    }
+
+    load(pluginInfo: InterpreterInfo): Promise<Plugin> {
+        const pluginLocation = pluginInfo.interpreter;
         let script: string | undefined = undefined;
         function emitter(_: string, content: string): void {
             // TODO: actually use AMD for cicular dependencies
             script = content;
         }
-        return pluginLocation.readData().then((pluginScript) => {
+        return readFile(pluginLocation).then((pluginScript) => {
             const host = createCompilerHost(new Map([
                 ["plugin.ts", pluginScript]
-            ]), options, emitter, fileService);
+            ]), options, emitter);
 
             const program = ts.createProgram(["plugin.ts"], options, host);
             // TODO: only compute if asked for.
@@ -53,7 +84,7 @@ export class TypescriptPluginLoader implements PluginLoader {
     }
 }
 
-function createCompilerHost(files: Map<string, string>, options: ts.CompilerOptions, emit: (name: string, content: string) => void, fileService: FileService): ts.CompilerHost {
+function createCompilerHost(files: Map<string, string>, options: ts.CompilerOptions, emit: (name: string, content: string) => void): ts.CompilerHost {
     return {
         getSourceFile: (fileName): ts.SourceFile => {
             let source = files.get(fileName);
@@ -62,7 +93,7 @@ function createCompilerHost(files: Map<string, string>, options: ts.CompilerOpti
                 if (fileName.indexOf("/") !== -1) {
                     throw Error("no relative/absolute paths here");
                 }
-                source = fileService.getModuleFile(fileService.joinPath("typescript", "lib", fileName));
+                source = fs.readFileSync(path.join("node_modules", "typescript", "lib", fileName), "utf8");
             }
 
             // any to suppress strict error about undefined

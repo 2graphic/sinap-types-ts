@@ -10,7 +10,7 @@ export class TypescriptProgram implements Core.Program {
         return this.program.environment;
     }
 
-    constructor(model: Model, public plugin: TypescriptPlugin) {
+    constructor(readonly model: Model, public plugin: TypescriptPlugin) {
         this.program = new DFAProgram(model, plugin);
     };
 

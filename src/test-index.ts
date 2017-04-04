@@ -2,19 +2,15 @@
 import { TypescriptPluginLoader } from ".";
 import { Type, Value } from "sinap-types";
 import { expect } from "chai";
-import { LocalFileService } from "./test-files-mock";
-import { Model, Plugin, PluginLoaderManager } from "sinap-core";
+import { Model, Plugin, getInterpreterInfo } from "sinap-core";
+import * as path from "path";
 
 describe("Load Plugins", () => {
-
-    const manager = new PluginLoaderManager();
-    manager.loaders.set("typescript", new TypescriptPluginLoader());
+    const loader = new TypescriptPluginLoader();
 
     let dfa: Plugin;
     before(() => {
-        const fs = new LocalFileService();
-        return fs.directoryByName(fs.joinPath("test-support", "dfa"))
-            .then((directory) => manager.loadPlugin(directory, fs))
+        return getInterpreterInfo(path.join("test-support", "dfa")).then((info) => loader.load(info.interpreterInfo))
             .then((plugin) => {
                 dfa = plugin;
             });
