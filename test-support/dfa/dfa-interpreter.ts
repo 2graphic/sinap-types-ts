@@ -40,7 +40,7 @@ function isEmpty(label?: string) {
     return true;
 }
 
-export function start(input: DFAGraph, data: string): State | boolean {
+export function start(input: DFAGraph, data: string): State {
     let start: DFANode | null = null;
     const accepts = new Set<DFANode>();
 

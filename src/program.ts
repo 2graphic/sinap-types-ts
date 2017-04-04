@@ -2,41 +2,17 @@ import * as Core from "sinap-core";
 import { TypescriptPlugin } from "./plugin";
 import { Type, Value } from "sinap-types";
 import { Model } from "sinap-core";
+import { naturalToValue, valueToNatural } from "./natural";
 
 
 export class TypescriptProgram implements Core.Program {
     private program: DFAProgram;
-    get environment() {
-        return this.program.environment;
-    }
+    readonly environment = new Value.Environment();
 
     constructor(readonly model: Model, public plugin: TypescriptPlugin) {
-        this.program = new DFAProgram(model, plugin);
-    };
-
-    validate() {
-        return this.program.validate();
-    }
-
-    run(a: Value.Value[]): { steps: Value.CustomObject[], result?: Value.Value, error?: Value.Primitive } {
-        if (a.length !== this.plugin.argumentTypes.length) {
-            throw new Error("Program.run: incorrect arity");
-        }
-        a.forEach((v, i) => {
-            if (!Type.isSubtype(v.type, this.plugin.argumentTypes[i])) {
-                throw new Error(`Program.run argument at index: ${i} is of incorrect type`);
-            }
-        });
-        return (this.program.run as any)(...a);
-    }
-}
-
-
-
-class DFAProgram {
-    readonly environment = new Value.Environment();
-    constructor(readonly model: Model, readonly plugin: TypescriptPlugin) {
         // TODO: investigate copying models
+        // TODO: that'll also copy the environment
+        this.environment = model.environment;
 
         const nodes = new Value.ArrayObject(new Value.ArrayType(plugin.nodesType), model.environment);
         const edges = new Value.ArrayObject(new Value.ArrayType(plugin.edgesType), model.environment);
@@ -55,75 +31,137 @@ class DFAProgram {
 
         model.graph.set("nodes", nodes);
         model.graph.set("edges", edges);
-    }
+        this.program = new DFAProgram(model, plugin, this.environment);
+    };
 
-    run(input: Value.Primitive): { steps: Value.CustomObject[], result?: Value.Value, error?: Value.Primitive } {
-        let state: Value.Value;
+    run(a: Value.Value[]): { steps: Value.CustomObject[], result?: Value.Value, error?: Value.Primitive } {
+        if (a.length !== this.plugin.argumentTypes.length) {
+            throw new Error("Program.run: incorrect arity");
+        }
+        a.forEach((v, i) => {
+            if (!Type.isSubtype(v.type, this.plugin.argumentTypes[i])) {
+                throw new Error(`Program.run argument at index: ${i} is of incorrect type`);
+            }
+        });
+
+        const dfaNodes = this.plugin.nodesType.types.values().next().value as Type.Intersection;
+        const dfaNode = dfaNodes.types.values().next().value;
+        const dfaEdges = this.plugin.edgesType.types.values().next().value as Type.Intersection;
+        const dfaEdge = dfaEdges.types.values().next().value;
+        const rules: [Type.CustomObject, Function][] = [
+            [dfaNode, DFANode],
+            [dfaEdge, DFAEdge],
+            [this.plugin.stateType, DFAState],
+            [this.plugin.graphType.types.values().next().value, DFAGraph],
+        ];
+
+        const toNatural = valueToNatural(new Map(rules));
+        const toValue = naturalToValue(this.environment,
+            rules.map((([a, b]) => [b, a] as [Function, Type.CustomObject])));
+
+        const unwrappedGraph = toNatural(this.model.graph);
+        const unwrappedInputs = a.map(v => toNatural(v));
+
+        let state: any;
         try {
-            state = this.start(this.model.graph, input);
+            state = (this.program.start as any)(unwrappedGraph, ...unwrappedInputs);
         } catch (err) {
             return { steps: [], error: Value.makePrimitive(this.environment, err) };
         }
         const steps: Value.CustomObject[] = [];
-        while (Type.isSubtype(state.type, this.plugin.stateType)) {
-            steps.push(state as Value.CustomObject);
+        while (state instanceof DFAState) {
+            steps.push(toValue(state) as Value.CustomObject);
             try {
-                state = this.step(state as Value.CustomObject);
+                state = this.program.step(state);
             } catch (err) {
                 return { steps: steps, error: Value.makePrimitive(this.environment, err) };
             }
         }
-        return { steps: steps, result: state };
+        return { steps: steps, result: toValue(state) };
     }
 
     validate() {
+        const dfaNodes = this.plugin.nodesType.types.values().next().value as Type.Intersection;
+        const dfaNode = dfaNodes.types.values().next().value;
+        const dfaEdges = this.plugin.edgesType.types.values().next().value as Type.Intersection;
+        const dfaEdge = dfaEdges.types.values().next().value;
+        const transformer = valueToNatural(new Map<Type.CustomObject, Function>([
+            [dfaNode, DFANode],
+            [dfaEdge, DFAEdge],
+            [this.plugin.stateType, DFAState],
+            [this.plugin.graphType.types.values().next().value, DFAGraph],
+        ]));
+
+        const unwrappedGraph = transformer(this.model.graph);
+
         try {
-            this.start(this.model.graph, Value.makePrimitive(this.environment, ""));
+            this.program.start(unwrappedGraph, "");
         } catch (err) {
             return Value.makePrimitive(this.environment, err);
         }
         return null;
     }
+}
 
-    private start(graph: Value.Intersection, input: Value.Primitive): Value.Value {
-        const nodes = graph.get("nodes") as Value.ArrayObject;
-        const startStates = [...nodes].filter(v => ((v as Value.CustomObject).get("isStartState") as Value.Primitive).value);
+
+export class DFANode {
+    /** Start State */
+    isStartState: boolean;
+    /** Accept State */
+    isAcceptState: boolean;
+    children: DFAEdge[];
+    label: string;
+}
+
+export class DFAEdge {
+    /** Symbol */
+    label: string;
+    destination: DFANode;
+}
+
+export class DFAGraph {
+    nodes: DFANode[];
+    // startState: DFANode;
+}
+
+export class DFAState {
+    constructor(public active: DFANode,
+        public inputLeft: string,
+        public message: string) {
+
+    }
+}
+
+class DFAProgram {
+    constructor(readonly model: Model, readonly plugin: TypescriptPlugin, readonly environment: Value.Environment) {
+    }
+
+    start(graph: DFAGraph, input: string): DFAState {
+        const startStates = graph.nodes.filter((v) => v.isStartState);
         if (startStates.length !== 1) {
             throw new Error(`must have exactly 1 start state, found: ${startStates.length}`);
         }
 
-        const state = new Value.CustomObject(this.plugin.stateType, this.environment);
-        state.set("active", startStates[0]);
-        state.set("inputLeft", input);
+        const state = new DFAState(startStates[0], input, "starting");
         return state;
     }
 
-    private step(state: Value.CustomObject): Value.Value {
-        const activeV = state.get("active") as Value.CustomObject;
-        const inputLeftV = state.get("inputLeft") as Value.Primitive;
-        const inputLeft = inputLeftV.value as string;
-        if (inputLeft.length === 0) {
-            return activeV.get("isAcceptState");
+    step(current: DFAState): DFAState | boolean {
+        if (current.inputLeft.length === 0) {
+            return current.active.isAcceptState === true;
         }
+        const destinations = current.active.children
+            .filter(edge => edge.label === current.inputLeft[0])
+            .map(edge => edge.destination);
 
-        const nextToken = inputLeft[0];
-
-        const possibleEdgesV = activeV.get("children") as Value.ArrayObject;
-
-        const possibleEdges = [...possibleEdgesV]
-            .filter(v => ((v as Value.CustomObject).get("label") as Value.Primitive).value === nextToken);
-
-        if (possibleEdges.length === 0) {
-            return Value.makePrimitive(this.environment, false);
+        if (destinations.length === 1) {
+            return new DFAState(destinations[0], current.inputLeft.substr(1),
+                `transitioning from ${current.active.label} to ${destinations[0].label}`);
+        } else if (destinations.length === 0) {
+            return false;
+        } else {
+            throw "This is a DFA!";
         }
-        if (possibleEdges.length > 1) {
-            throw new Error(`must have 0 or 1 possible edges, found: ${possibleEdges.length}`);
-        }
-
-        const newState = new Value.CustomObject(this.plugin.stateType, this.environment);
-        newState.set("active", (possibleEdges[0] as Value.CustomObject).get("destination"));
-        newState.set("inputLeft", Value.makePrimitive(this.environment, inputLeft.substr(1)));
-        return newState;
     }
 }
 
