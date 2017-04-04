@@ -109,7 +109,7 @@ describe("Load Plugins", () => {
 
         const prog = dfa.makeProgram(model);
 
-        for (let x = 0; x < 1000; x++) {
+        for (let x = 0; x < 300; x++) {
             const str = x.toString(2);
             const result = prog.run([Value.makePrimitive(prog.environment, str)]);
             if (result.error) {
