@@ -16,8 +16,8 @@ export class TypescriptProgram implements Core.Program {
         // TODO: that'll also copy the environment
         this.environment = model.environment;
 
-        const nodes = new Value.ArrayObject(new Value.ArrayType(plugin.nodesType), model.environment);
-        const edges = new Value.ArrayObject(new Value.ArrayType(plugin.edgesType), model.environment);
+        const nodes = new Value.ArrayObject(new Value.ArrayType(plugin.types.nodes), model.environment);
+        const edges = new Value.ArrayObject(new Value.ArrayType(plugin.types.edges), model.environment);
 
         for (const node of model.nodes) {
             nodes.push(node);
@@ -35,15 +35,15 @@ export class TypescriptProgram implements Core.Program {
         model.graph.set("edges", edges);
         this.program = new DFAProgram(model, plugin, this.environment);
 
-        const dfaNodes = this.plugin.nodesType.types.values().next().value as Type.Intersection;
+        const dfaNodes = this.plugin.types.nodes.types.values().next().value as Type.Intersection;
         const dfaNode = dfaNodes.types.values().next().value;
-        const dfaEdges = this.plugin.edgesType.types.values().next().value as Type.Intersection;
+        const dfaEdges = this.plugin.types.edges.types.values().next().value as Type.Intersection;
         const dfaEdge = dfaEdges.types.values().next().value;
         const rules: [Type.CustomObject, Function][] = [
             [dfaNode, DFANode],
             [dfaEdge, DFAEdge],
-            [this.plugin.stateType, DFAState],
-            [this.plugin.graphType.types.values().next().value, DFAGraph],
+            [this.plugin.types.state, DFAState],
+            [this.plugin.types.graph.types.values().next().value, DFAGraph],
         ];
 
         this.toNatural = valueToNatural(new Map(rules));
@@ -53,11 +53,11 @@ export class TypescriptProgram implements Core.Program {
     };
 
     run(a: Value.Value[]): { steps: Value.CustomObject[], result?: Value.Value, error?: Value.Primitive } {
-        if (a.length !== this.plugin.argumentTypes.length) {
+        if (a.length !== this.plugin.types.arguments.length) {
             throw new Error("Program.run: incorrect arity");
         }
         a.forEach((v, i) => {
-            if (!Type.isSubtype(v.type, this.plugin.argumentTypes[i])) {
+            if (!Type.isSubtype(v.type, this.plugin.types.arguments[i])) {
                 throw new Error(`Program.run argument at index: ${i} is of incorrect type`);
             }
         });
@@ -85,15 +85,15 @@ export class TypescriptProgram implements Core.Program {
     }
 
     validate() {
-        const dfaNodes = this.plugin.nodesType.types.values().next().value as Type.Intersection;
+        const dfaNodes = this.plugin.types.nodes.types.values().next().value as Type.Intersection;
         const dfaNode = dfaNodes.types.values().next().value;
-        const dfaEdges = this.plugin.edgesType.types.values().next().value as Type.Intersection;
+        const dfaEdges = this.plugin.types.edges.types.values().next().value as Type.Intersection;
         const dfaEdge = dfaEdges.types.values().next().value;
         const transformer = valueToNatural(new Map<Type.CustomObject, Function>([
             [dfaNode, DFANode],
             [dfaEdge, DFAEdge],
-            [this.plugin.stateType, DFAState],
-            [this.plugin.graphType.types.values().next().value, DFAGraph],
+            [this.plugin.types.state, DFAState],
+            [this.plugin.types.graph.types.values().next().value, DFAGraph],
         ]));
 
         const unwrappedGraph = transformer(this.model.graph);

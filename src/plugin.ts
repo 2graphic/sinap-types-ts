@@ -1,6 +1,6 @@
 import * as ts from "typescript";
 import * as Core from "sinap-core";
-import { Type, Value } from "sinap-types";
+import { Type } from "sinap-types";
 import { minimizeTypeArray } from "sinap-types/lib/util";
 import { CompilationResult } from "./plugin-loader";
 import { TypeScriptTypeEnvironment } from "./typescript-environment";
@@ -39,12 +39,7 @@ function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
 }
 
 export class TypescriptPlugin implements Core.Plugin {
-    stateType: Type.CustomObject;
-    nodesType: Core.ElementUnion;
-    edgesType: Core.ElementUnion;
-    graphType: Core.ElementType;
-    argumentTypes: Type.Type[];
-    resultType: Type.Type;
+    readonly types: Core.PluginTypes;
     private environment: TypeScriptTypeEnvironment;
 
     private getFunctionSignatures(name: string, node: ts.Node, checker: ts.TypeChecker) {
@@ -71,8 +66,7 @@ export class TypescriptPlugin implements Core.Plugin {
         if (!(pluginGraphType instanceof Type.CustomObject)) {
             throw new Error("Graph must be an object type");
         }
-        this.graphType = new Core.ElementType(pluginGraphType, Core.drawableGraphType);
-        this.stateType = this.environment.lookupType("State", pluginSourceFile) as Type.CustomObject;
+        const stateType = this.environment.lookupType("State", pluginSourceFile) as Type.CustomObject;
 
         const startTypes = this.getFunctionSignatures("start", program.getSourceFile("plugin.ts"), checker);
         const stepTypes = this.getFunctionSignatures("step", program.getSourceFile("plugin.ts"), checker);
@@ -82,31 +76,42 @@ export class TypescriptPlugin implements Core.Plugin {
         if (stepTypes.length !== 1) {
             throw new Error("don't overload the step function");
         }
-        this.argumentTypes = startTypes[0][0].slice(1);
-        this.resultType = mergeUnions(this.stateType, startTypes[0][1], stepTypes[0][1]);
+        const argumentTypes = startTypes[0][0].slice(1);
+        const resultType = mergeUnions(stateType, startTypes[0][1], stepTypes[0][1]);
 
-        const typesToUnion = (drawable: Type.CustomObject, kind: string) => {
+        const typesToUnion = (kind: string) => {
             const type = this.environment.lookupType(kind, pluginSourceFile);
-            let types: Type.Type[];
             if (type instanceof Type.Union) {
-                types = [...type.types];
-            } else {
-                types = [type];
-            }
-
-            return new Core.ElementUnion(new Set(types.map(t => {
-                if (!(t instanceof Type.CustomObject)) {
-                    throw new Error(`all members of ${kind} must be objects`);
+                for (const t of type.types) {
+                    if (!(t instanceof Type.CustomObject)) {
+                        throw new Error(`All members of ${kind} must be classes`);
+                    }
                 }
-                return new Core.ElementType(t, drawable);
-            })));
+                return [...type.types] as Type.CustomObject[];
+            } else if (type instanceof Type.CustomObject) {
+                return [type];
+            } else {
+                throw new Error(`${kind} must either be a class or a union of classes`);
+            }
         };
 
-        this.nodesType = typesToUnion(Core.drawableNodeType, "Nodes");
-        this.edgesType = typesToUnion(Core.drawableEdgeType, "Edges");
+        const nodesType = typesToUnion("Nodes");
+        const edgesType = typesToUnion("Edges");
+
+        const types: Core.RawPluginTypes = {
+            rawNodes: nodesType,
+            rawEdges: edgesType,
+            rawGraph: pluginGraphType,
+            state: stateType,
+            arguments: argumentTypes,
+            result: resultType
+        };
+        if (Core.fromRaw(types)) {
+            this.types = types;
+        }
     }
 
-    validateEdge(src: Value.Intersection, dst?: Value.Intersection, like?: Value.Intersection): boolean {
+    validateEdge(src: Core.ElementValue, dst?: Core.ElementValue, like?: Core.ElementValue): boolean {
         src;
         dst;
         like;

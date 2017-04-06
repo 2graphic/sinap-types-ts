@@ -18,23 +18,23 @@ describe("Load Plugins", () => {
     });
 
     it("handles DFA", () => {
-        expect(dfa.nodesType.types.size).to.equal(1);
-        const nodeType = dfa.nodesType.types.values().next().value as Type.Intersection;
+        expect(dfa.types.nodes.types.size).to.equal(1);
+        const nodeType = dfa.types.nodes.types.values().next().value as Type.Intersection;
         expect(nodeType).to.be.instanceof(Type.Intersection);
         expect(nodeType.members.get("isAcceptState")!.equals(new Type.Primitive("boolean"))).to.be.true;
 
 
-        expect(dfa.stateType).to.be.instanceof(Type.CustomObject);
-        expect(dfa.stateType.members.get("inputLeft")!.equals(new Type.Primitive("string"))).to.be.true;
+        expect(dfa.types.state).to.be.instanceof(Type.CustomObject);
+        expect(dfa.types.state.members.get("inputLeft")!.equals(new Type.Primitive("string"))).to.be.true;
 
-        expect(dfa.graphType).to.be.instanceof(Type.Intersection);
-        expect(dfa.graphType.members.get("nodes")!
-            .equals(new Value.ArrayType(nodeType)))
+        expect(dfa.types.graph).to.be.instanceof(Type.Intersection);
+        expect(dfa.types.graph.members.get("nodes")!
+            .equals(new Value.ArrayType(dfa.types.rawNodes[0])))
             .to.be.true;
     });
 
     it("builds correct unwrapped structure", () => {
-        expect(dfa.resultType.equals(new Type.Primitive("boolean"))).to.be.true;
+        expect(dfa.types.result.equals(new Type.Primitive("boolean"))).to.be.true;
 
         const model = new Model(dfa);
         // for reference: makeNode(NodeKind)
