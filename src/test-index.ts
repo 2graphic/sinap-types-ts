@@ -108,6 +108,8 @@ describe("Load Plugins", () => {
         e21.set("label", Value.makePrimitive(model.environment, "1"));
 
         const prog = dfa.makeProgram(model);
+        const progQ0 = prog.model.environment.values.get(q0.uuid)!;
+        const progQ1 = prog.model.environment.values.get(q1.uuid)!;
 
         for (let x = 0; x < 300; x++) {
             const str = x.toString(2);
@@ -116,12 +118,12 @@ describe("Load Plugins", () => {
                 throw new Error("test failed error returned: " + result.error.value + " steps: " + result.steps.join(", "));
             }
             expect((result as any).result.value).to.equal(x % 3 === 0);
-            expect(result.steps[0].get("active")).to.equal(q0);
+            expect(result.steps[0].get("active")).to.equal(progQ0);
             if (str[0] === "1") {
-                expect(result.steps[1].get("active")).to.equal(q1);
+                expect(result.steps[1].get("active")).to.equal(progQ1);
             }
             if (str[0] === "0") {
-                expect(result.steps[1].get("active")).to.equal(q0);
+                expect(result.steps[1].get("active")).to.equal(progQ0);
             }
         }
     });

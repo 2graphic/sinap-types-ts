@@ -10,22 +10,22 @@ export class TypescriptProgram implements Core.Program {
     private toValue: (value: any) => Value.Value;
     private program: DFAProgram;
     readonly environment = new Value.Environment();
+    readonly model: Model;
 
-    constructor(readonly model: Model, public plugin: TypescriptPlugin) {
-        // TODO: investigate copying models
-        // TODO: that'll also copy the environment
-        this.environment = model.environment;
+    constructor(modelIn: Model, public plugin: TypescriptPlugin) {
+        this.model = Model.fromSerial(modelIn.serialize(), plugin);
+        this.environment = this.model.environment;
 
-        const nodes = new Value.ArrayObject(new Value.ArrayType(plugin.types.nodes), model.environment);
-        const edges = new Value.ArrayObject(new Value.ArrayType(plugin.types.edges), model.environment);
+        const nodes = new Value.ArrayObject(new Value.ArrayType(plugin.types.nodes), this.model.environment);
+        const edges = new Value.ArrayObject(new Value.ArrayType(plugin.types.edges), this.model.environment);
 
-        for (const node of model.nodes) {
+        for (const node of this.model.nodes) {
             nodes.push(node);
             node.set("children", new Value.ArrayObject(node.type.members.get("children") as Value.ArrayType, this.environment));
             node.set("parents", new Value.ArrayObject(node.type.members.get("parents") as Value.ArrayType, this.environment));
         }
 
-        for (const edge of model.edges) {
+        for (const edge of this.model.edges) {
             edges.push(edge);
             const sourceBox = edge.get("source") as Value.Union;
             const source = sourceBox.value as Value.CustomObject;
@@ -38,9 +38,9 @@ export class TypescriptProgram implements Core.Program {
             destinationParents.push(edge);
         }
 
-        model.graph.set("nodes", nodes);
-        model.graph.set("edges", edges);
-        this.program = new DFAProgram(model, plugin, this.environment);
+        this.model.graph.set("nodes", nodes);
+        this.model.graph.set("edges", edges);
+        this.program = new DFAProgram(this.model, plugin, this.environment);
 
         const dfaNodes = this.plugin.types.nodes.types.values().next().value as Core.ElementType;
         const dfaNode = dfaNodes.types.values().next().value;
