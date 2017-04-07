@@ -17,6 +17,10 @@ function flatteningDeepCopy(rep: any, env: Value.Environment, map: Map<Value.Val
 }
 
 function fromValueInner(value: Value.Value, map: Map<Value.Value, any>): any {
+    if (value instanceof Value.Union) {
+        return fromValueInner(value.value, map);
+    }
+
     if (value instanceof Value.MapObject) {
         const result = new Map();
         map.set(value, result);
@@ -87,6 +91,7 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
     if (transformed) {
         return transformed;
     }
+
     const typeOfV = typeof v;
     if (typeOfV === "object") {
         let t = typeMap.get(Object.getPrototypeOf(v));

@@ -27,17 +27,24 @@ export class TypescriptProgram implements Core.Program {
 
         for (const edge of model.edges) {
             edges.push(edge);
-            ((edge.get("source") as Value.CustomObject).get("children") as Value.ArrayObject).push(edge);
-            ((edge.get("destination") as Value.CustomObject).get("parents") as Value.ArrayObject).push(edge);
+            const sourceBox = edge.get("source") as Value.Union;
+            const source = sourceBox.value as Value.CustomObject;
+            const sourceChildren = source.get("children") as Value.ArrayObject;
+            sourceChildren.push(edge);
+
+            const destinationBox = edge.get("destination") as Value.Union;
+            const destination = destinationBox.value as Value.CustomObject;
+            const destinationParents = destination.get("parents") as Value.ArrayObject;
+            destinationParents.push(edge);
         }
 
         model.graph.set("nodes", nodes);
         model.graph.set("edges", edges);
         this.program = new DFAProgram(model, plugin, this.environment);
 
-        const dfaNodes = this.plugin.types.nodes.types.values().next().value as Type.Intersection;
+        const dfaNodes = this.plugin.types.nodes.types.values().next().value as Core.ElementType;
         const dfaNode = dfaNodes.types.values().next().value;
-        const dfaEdges = this.plugin.types.edges.types.values().next().value as Type.Intersection;
+        const dfaEdges = this.plugin.types.edges.types.values().next().value as Core.ElementType;
         const dfaEdge = dfaEdges.types.values().next().value;
         const rules: [Type.CustomObject, Function][] = [
             [dfaNode, DFANode],

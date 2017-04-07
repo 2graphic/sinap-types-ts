@@ -29,7 +29,7 @@ describe("Load Plugins", () => {
 
         expect(dfa.types.graph).to.be.instanceof(Type.Intersection);
         expect(dfa.types.graph.members.get("nodes")!
-            .equals(new Value.ArrayType(dfa.types.rawNodes[0])))
+            .equals(new Value.ArrayType(new Type.Union([dfa.types.rawNodes[0]]))))
             .to.be.true;
     });
 
@@ -72,7 +72,7 @@ describe("Load Plugins", () => {
 
         expect(g.nodes[0].children[0].label).to.equal("0");
         expect(g.nodes[0].children[1].label).to.equal("1");
-        expect(g.nodes[0].children[0].source).to.equal(g.nodes[0]);
+        expect(g.nodes[0].children[0].source.value).to.equal(g.nodes[0].value);
         expect(g.nodes[1].isAcceptState).to.be.false;
         expect(g.nodes[0].isAcceptState).to.be.true;
     });
