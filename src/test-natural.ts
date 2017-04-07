@@ -103,6 +103,7 @@ describe("natural", () => {
         const iA = new Type.Intersection([A]);
         const B = new Type.CustomObject("B", null, new Map([["a", iA]]));
         A.members.set("b", B);
+        iA.members.set("b", B);
 
         const a = new Value.Intersection(iA, env);
         const b = new Value.CustomObject(B, env);
