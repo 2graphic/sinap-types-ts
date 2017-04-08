@@ -16,6 +16,17 @@ function* iterfilter<T>(c: (t: T) => boolean, i: Iterable<T>) {
 
 const boolUnion = new Type.Union([new Type.Literal(true), new Type.Literal(false)]);
 
+function definePlugin(script: string) {
+    const scope = {};
+    function define(_module: string, _requirements: string[], implement: (require: undefined, exports: any) => void) {
+        implement(undefined, scope);
+    }
+    define;
+    // tslint:disable-next-line no-eval
+    eval(script);
+    return scope;
+}
+
 function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
     function* typesGetter() {
         for (const t of ts) {
@@ -41,6 +52,7 @@ function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
 export class TypescriptPlugin implements Core.Plugin {
     readonly types: Core.PluginTypes;
     private environment: TypeScriptTypeEnvironment;
+    implementation: any;
 
     private getFunctionSignatures(name: string, node: ts.Node, checker: ts.TypeChecker) {
         const functionSymbol = checker.getSymbolsInScope(node, ts.SymbolFlags.Function)
@@ -61,6 +73,8 @@ export class TypescriptPlugin implements Core.Plugin {
         const checker = program.getTypeChecker();
         this.environment = new TypeScriptTypeEnvironment(checker);
         const pluginSourceFile = program.getSourceFile("plugin.ts");
+
+        this.implementation = definePlugin(compilationResult.js);
 
         const pluginGraphType = this.environment.lookupType("Graph", pluginSourceFile);
         if (!(pluginGraphType instanceof Type.CustomObject)) {

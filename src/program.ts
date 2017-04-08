@@ -8,7 +8,7 @@ import { naturalToValue, valueToNatural } from "./natural";
 export class TypescriptProgram implements Core.Program {
     private toNatural: (value: Value.Value) => any;
     private toValue: (value: any) => Value.Value;
-    private program: DFAProgram;
+    private stateType: any;
     readonly environment = new Value.Environment();
     readonly model: Model;
 
@@ -40,18 +40,24 @@ export class TypescriptProgram implements Core.Program {
 
         this.model.graph.set("nodes", nodes);
         this.model.graph.set("edges", edges);
-        this.program = new DFAProgram(this.model, plugin, this.environment);
 
-        const dfaNodes = this.plugin.types.nodes.types.values().next().value as Core.ElementType;
-        const dfaNode = dfaNodes.types.values().next().value;
-        const dfaEdges = this.plugin.types.edges.types.values().next().value as Core.ElementType;
-        const dfaEdge = dfaEdges.types.values().next().value;
-        const rules: [Type.CustomObject, Function][] = [
-            [dfaNode, DFANode],
-            [dfaEdge, DFAEdge],
-            [this.plugin.types.state, DFAState],
-            [this.plugin.types.graph.types.values().next().value, DFAGraph],
-        ];
+        const rules: [Type.CustomObject, Function][] = [];
+        const addRule = (t: Type.CustomObject) => {
+            const nativeType = this.plugin.implementation[t.name];
+            rules.push([t, nativeType]);
+            return nativeType;
+        };
+
+        addRule(this.plugin.types.graph.pluginType);
+        this.stateType = addRule(this.plugin.types.state);
+
+        for (const nodeType of this.plugin.types.nodes.types) {
+            addRule(nodeType.pluginType);
+        }
+
+        for (const edgeType of this.plugin.types.edges.types) {
+            addRule(edgeType.pluginType);
+        }
 
         this.toNatural = valueToNatural(new Map(rules));
         this.toValue = naturalToValue(this.environment,
@@ -75,15 +81,16 @@ export class TypescriptProgram implements Core.Program {
 
         let state: any;
         try {
-            state = (this.program.start as any)(unwrappedGraph, ...unwrappedInputs);
+            state = this.plugin.implementation.start(unwrappedGraph, ...unwrappedInputs);
         } catch (err) {
             return { steps: [], error: Value.makePrimitive(this.environment, err) };
         }
         const steps: Value.CustomObject[] = [];
-        while (state instanceof DFAState) {
+
+        while (state instanceof this.stateType) {
             steps.push(this.toValue(state) as Value.CustomObject);
             try {
-                state = this.program.step(state);
+                state = this.plugin.implementation.step(state);
             } catch (err) {
                 return { steps: steps, error: Value.makePrimitive(this.environment, err) };
             }
@@ -92,87 +99,13 @@ export class TypescriptProgram implements Core.Program {
     }
 
     validate() {
-        const dfaNodes = this.plugin.types.nodes.types.values().next().value as Type.Intersection;
-        const dfaNode = dfaNodes.types.values().next().value;
-        const dfaEdges = this.plugin.types.edges.types.values().next().value as Type.Intersection;
-        const dfaEdge = dfaEdges.types.values().next().value;
-        const transformer = valueToNatural(new Map<Type.CustomObject, Function>([
-            [dfaNode, DFANode],
-            [dfaEdge, DFAEdge],
-            [this.plugin.types.state, DFAState],
-            [this.plugin.types.graph.types.values().next().value, DFAGraph],
-        ]));
-
-        const unwrappedGraph = transformer(this.model.graph);
+        const unwrappedGraph = this.toNatural(this.model.graph);
 
         try {
-            this.program.start(unwrappedGraph, "");
+            this.plugin.implementation.start(unwrappedGraph, "");
         } catch (err) {
             return Value.makePrimitive(this.environment, err);
         }
         return null;
     }
 }
-
-
-export class DFANode {
-    /** Start State */
-    isStartState: boolean;
-    /** Accept State */
-    isAcceptState: boolean;
-    children: DFAEdge[];
-    label: string;
-}
-
-export class DFAEdge {
-    /** Symbol */
-    label: string;
-    destination: DFANode;
-}
-
-export class DFAGraph {
-    nodes: DFANode[];
-    // startState: DFANode;
-}
-
-export class DFAState {
-    constructor(public active: DFANode,
-        public inputLeft: string,
-        public message: string) {
-
-    }
-}
-
-class DFAProgram {
-    constructor(readonly model: Model, readonly plugin: TypescriptPlugin, readonly environment: Value.Environment) {
-    }
-
-    start(graph: DFAGraph, input: string): DFAState {
-        const startStates = graph.nodes.filter((v) => v.isStartState);
-        if (startStates.length !== 1) {
-            throw new Error(`must have exactly 1 start state, found: ${startStates.length}`);
-        }
-
-        const state = new DFAState(startStates[0], input, "starting");
-        return state;
-    }
-
-    step(current: DFAState): DFAState | boolean {
-        if (current.inputLeft.length === 0) {
-            return current.active.isAcceptState === true;
-        }
-        const destinations = current.active.children
-            .filter(edge => edge.label === current.inputLeft[0])
-            .map(edge => edge.destination);
-
-        if (destinations.length === 1) {
-            return new DFAState(destinations[0], current.inputLeft.substr(1),
-                `transitioning from ${current.active.label} to ${destinations[0].label}`);
-        } else if (destinations.length === 0) {
-            return false;
-        } else {
-            throw "This is a DFA!";
-        }
-    }
-}
-
