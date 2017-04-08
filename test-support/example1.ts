@@ -34,3 +34,10 @@ class Priv {
     private x: number;
     y: number;
 }
+
+
+class TestMethods {
+    doIt(x: number) {
+        return x + '.';
+    }
+}

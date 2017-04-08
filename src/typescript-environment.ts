@@ -1,5 +1,6 @@
 import * as ts from "typescript";
 import { Type, Value } from "sinap-types";
+import { imap } from "sinap-types/lib/util";
 
 type es6BuiltinNames = "Map" | "Set" | "Array";
 const es6Builtins = {
@@ -7,6 +8,10 @@ const es6Builtins = {
     "Set": Value.SetType,
     "Array": Value.ArrayType,
 };
+
+export interface TypescriptMethodCaller {
+    call(obj: Value.CustomObject, key: string, args: Value.Value[]): Value.Value | void;
+}
 
 /**
  * Store a mapping of typescript types to our wrappers.
@@ -19,7 +24,7 @@ export class TypeScriptTypeEnvironment {
     private es6Types: { [a: string]: ts.Type } = {};
     private chores: (() => void)[] = [];
 
-    constructor(public checker: ts.TypeChecker) {
+    constructor(public checker: ts.TypeChecker, private methodCaller: TypescriptMethodCaller) {
         for (const key in es6Builtins) {
             this.es6Types[key] = checker.lookupGlobalType(key + "Constructor");
         }
@@ -37,6 +42,23 @@ export class TypeScriptTypeEnvironment {
         return value;
     }
 
+    getMethod(symbol: ts.Symbol, name: string): Type.MethodObject {
+        const declaration = symbol.valueDeclaration as ts.MethodDeclaration;
+        const sig = this.checker.getSignatureFromDeclaration(declaration);
+        const params = [...imap(s => this.getType(this.checker.getTypeOfSymbol(s)), sig.getParameters())];
+        const ret = this.getType(sig.getReturnType());
+        const caller = this.methodCaller;
+
+        let implementation = function(this: Value.CustomObject, ...args: Value.Value[]) {
+            return caller.call(this, name, args);
+        };
+
+        return {
+            argTypes: params,
+            returnType: ret,
+            implementation: implementation,
+        };
+    }
 
     getTypeInner(typeOriginal: ts.Type): Type.Type {
         // this trick (getting the symbol and going back to the type)
@@ -85,6 +107,7 @@ export class TypeScriptTypeEnvironment {
             const members = new Map<string, Type.Type>();
             const visibility = new Map<string, boolean>();
             const prettyNames = new Map<string, string>();
+            const methods = new Map<string, Type.MethodObject>();
             const tsMembers = objectType.getSymbol().members;
             if (!tsMembers) {
                 throw new Error("work on this");
@@ -93,6 +116,13 @@ export class TypeScriptTypeEnvironment {
                 if (element.name === "__constructor") {
                     return;
                 }
+
+                if (element.flags & ts.SymbolFlags.Method) {
+                    const method = this.getMethod(element, key);
+                    methods.set(key, method);
+                    return;
+                }
+
                 members.set(key, this.getType(this.checker.getTypeOfSymbol(element)));
 
                 const docComment = element.getDocumentationComment();
@@ -127,7 +157,7 @@ export class TypeScriptTypeEnvironment {
                 }
             }
             if (objectType.getSymbol().flags & ts.SymbolFlags.Class) {
-                wrapped = new Type.CustomObject(objectType.getSymbol().name, superType, members, undefined, prettyNames, visibility);
+                wrapped = new Type.CustomObject(objectType.getSymbol().name, superType, members, methods, prettyNames, visibility);
             } else {
                 wrapped = new Type.Record("Record", members, prettyNames, visibility);
             }

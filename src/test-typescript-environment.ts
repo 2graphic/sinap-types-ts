@@ -16,7 +16,18 @@ describe("TS converter", () => {
 
         const program = ts.createProgram(["test-support/example1.ts"], options);
         const checker = program.getTypeChecker();
-        const env = new TypeScriptTypeEnvironment(checker);
+        const env = new TypeScriptTypeEnvironment(checker, {
+            call: (v, key, args) => {
+                expect(v).to.equal(testMethodsObject);
+                expect(key).to.equal("doIt");
+                expect(args.length).to.equal(1);
+                const arg = args[0] as Value.Primitive;
+                expect(arg).to.instanceof(Value.Primitive);
+                expect(arg.type.name).to.equal("number");
+                expect(arg.value).to.equal(17);
+                return new Value.Primitive(new Type.Primitive("string"), valueEnv, "17.");
+            }
+        });
         const file = program.getSourceFile("test-support/example1.ts");
         const A = env.lookupType("A", file) as Type.CustomObject;
         const B = env.lookupType("B", file) as Type.CustomObject;
@@ -63,5 +74,14 @@ describe("TS converter", () => {
         expect(Priv).to.instanceof(Type.CustomObject);
         expect(Priv.isVisible("x")).to.be.false;
         expect(Priv.isVisible("y")).to.be.true;
+
+        const TestMethods = env.lookupType("TestMethods", file) as Type.CustomObject;
+        expect(TestMethods).to.instanceof(Type.CustomObject);
+        const valueEnv = new Value.Environment();
+        const testMethodsObject = new Value.CustomObject(TestMethods, valueEnv);
+        const result = testMethodsObject.call("doIt", new Value.Primitive(new Type.Primitive("number"), valueEnv, 17)) as Value.Primitive;
+        expect(result).to.instanceof(Value.Primitive);
+        expect(result.type.name).to.equal("string");
+        expect(result.value).to.equal("17.");
     });
 });

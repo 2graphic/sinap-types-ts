@@ -3,7 +3,7 @@ import * as Core from "sinap-core";
 import { Type } from "sinap-types";
 import { minimizeTypeArray } from "sinap-types/lib/util";
 import { CompilationResult } from "./plugin-loader";
-import { TypeScriptTypeEnvironment } from "./typescript-environment";
+import { TypeScriptTypeEnvironment, TypescriptMethodCaller } from "./typescript-environment";
 import { TypescriptProgram } from "./program";
 
 function* iterfilter<T>(c: (t: T) => boolean, i: Iterable<T>) {
@@ -52,6 +52,14 @@ function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
 export class TypescriptPlugin implements Core.Plugin {
     readonly types: Core.PluginTypes;
     private environment: TypeScriptTypeEnvironment;
+    private typescriptCaller: TypescriptMethodCaller = {
+        call: (value, key, args) => {
+            value;
+            args;
+            // TODO: wire this up all the way
+            console.log("calling", key);
+        }
+    };
     implementation: any;
 
     private getFunctionSignatures(name: string, node: ts.Node, checker: ts.TypeChecker) {
@@ -71,7 +79,7 @@ export class TypescriptPlugin implements Core.Plugin {
 
     constructor(program: ts.Program, readonly compilationResult: CompilationResult, readonly pluginInfo: Core.InterpreterInfo) {
         const checker = program.getTypeChecker();
-        this.environment = new TypeScriptTypeEnvironment(checker);
+        this.environment = new TypeScriptTypeEnvironment(checker, this.typescriptCaller);
         const pluginSourceFile = program.getSourceFile("plugin.ts");
 
         this.implementation = definePlugin(compilationResult.js);
