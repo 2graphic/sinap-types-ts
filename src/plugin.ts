@@ -1,6 +1,6 @@
 import * as ts from "typescript";
 import * as Core from "sinap-core";
-import { Type } from "sinap-types";
+import { Type, Value } from "sinap-types";
 import { minimizeTypeArray } from "sinap-types/lib/util";
 import { CompilationResult } from "./plugin-loader";
 import { TypeScriptTypeEnvironment, TypescriptMethodCaller } from "./typescript-environment";
@@ -58,7 +58,13 @@ export class TypescriptPlugin implements Core.Plugin {
             args;
             // TODO: wire this up all the way
             console.log("calling", key);
-        }
+        },
+        callGetter: (value, key) => {
+            value;
+            // TODO: wire this up all the way
+            console.log("getting", key);
+            return new Value.Primitive(new Type.Primitive("number"), value.environment, 1);
+        },
     };
     implementation: any;
 

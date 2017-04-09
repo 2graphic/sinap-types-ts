@@ -26,7 +26,13 @@ describe("TS converter", () => {
                 expect(arg.type.name).to.equal("number");
                 expect(arg.value).to.equal(17);
                 return new Value.Primitive(new Type.Primitive("string"), valueEnv, "17.");
+            },
+            callGetter: (v, key) => {
+                expect(v).to.equal(testMethodsObject);
+                expect(key).to.equal("num");
+                return new Value.Primitive(new Type.Primitive("number"), valueEnv, 5);
             }
+
         });
         const file = program.getSourceFile("test-support/example1.ts");
         const A = env.lookupType("A", file) as Type.CustomObject;
@@ -83,5 +89,12 @@ describe("TS converter", () => {
         expect(result).to.instanceof(Value.Primitive);
         expect(result.type.name).to.equal("string");
         expect(result.value).to.equal("17.");
+
+        expect(TestMethods.methods.get("doIt")!.isGetter).to.be.false;
+        expect(TestMethods.methods.get("num")!.isGetter).to.be.true;
+        const numResult = testMethodsObject.call("num") as Value.Primitive;
+        expect(numResult).to.instanceof(Value.Primitive);
+        expect(numResult.type.name).to.equal("number");
+        expect(numResult.value).to.equal(5);
     });
 });

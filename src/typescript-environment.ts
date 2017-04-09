@@ -11,6 +11,7 @@ const es6Builtins = {
 
 export interface TypescriptMethodCaller {
     call(obj: Value.CustomObject, key: string, args: Value.Value[]): Value.Value | void;
+    callGetter(obj: Value.CustomObject, key: string): Value.Value;
 }
 
 /**
@@ -56,6 +57,22 @@ export class TypeScriptTypeEnvironment {
         return {
             argTypes: params,
             returnType: ret,
+            isGetter: false,
+            implementation: implementation,
+        };
+    }
+
+    getGetter(type: Type.Type, name: string): Type.MethodObject {
+        const caller = this.methodCaller;
+
+        let implementation = function(this: Value.CustomObject) {
+            return caller.callGetter(this, name);
+        };
+
+        return {
+            argTypes: [],
+            returnType: type,
+            isGetter: true,
             implementation: implementation,
         };
     }
@@ -123,7 +140,15 @@ export class TypeScriptTypeEnvironment {
                     return;
                 }
 
-                members.set(key, this.getType(this.checker.getTypeOfSymbol(element)));
+                const memberType = this.getType(this.checker.getTypeOfSymbol(element));
+
+                if (element.flags & ts.SymbolFlags.GetAccessor) {
+                    const method = this.getGetter(memberType, key);
+                    methods.set(key, method);
+                    return;
+                }
+
+                members.set(key, memberType);
 
                 const docComment = element.getDocumentationComment();
                 if (docComment && docComment.length > 0) {

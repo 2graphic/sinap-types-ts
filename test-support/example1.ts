@@ -40,4 +40,8 @@ class TestMethods {
     doIt(x: number) {
         return x + '.';
     }
+
+    get num() {
+        return 5;
+    }
 }
