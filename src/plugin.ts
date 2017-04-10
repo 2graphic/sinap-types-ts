@@ -1,18 +1,11 @@
 import * as ts from "typescript";
 import * as Core from "sinap-core";
 import { Type, Value } from "sinap-types";
-import { minimizeTypeArray } from "sinap-types/lib/util";
+import { minimizeTypeArray, ifilter } from "sinap-types/lib/util";
 import { CompilationResult } from "./plugin-loader";
 import { TypeScriptTypeEnvironment, TypescriptMethodCaller } from "./typescript-environment";
 import { TypescriptProgram } from "./program";
-
-function* iterfilter<T>(c: (t: T) => boolean, i: Iterable<T>) {
-    for (const el of i) {
-        if (c(el)) {
-            yield el;
-        }
-    }
-}
+import { valueToNatural, naturalToValue } from "./natural";
 
 const boolUnion = new Type.Union([new Type.Literal(true), new Type.Literal(false)]);
 
@@ -38,7 +31,7 @@ function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
         }
     }
 
-    const types = minimizeTypeArray(iterfilter((t) => !Type.isSubtype(t, typeToRemove), typesGetter()));
+    const types = minimizeTypeArray(ifilter((t) => !Type.isSubtype(t, typeToRemove), typesGetter()));
     if (types.length === 1) {
         return types[0];
     }
@@ -50,20 +43,26 @@ function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
 }
 
 export class TypescriptPlugin implements Core.Plugin {
+    naturalMapping: [Type.CustomObject, Function][];
+    inverseNaturalMapping: Map<Function, Type.CustomObject>;
+    public naturalStateType: any;
+    public toNatural: (value: Value.Value) => any;
+    public toValue: (value: any) => Value.Value;
+
     readonly types: Core.PluginTypes;
     private environment: TypeScriptTypeEnvironment;
     private typescriptCaller: TypescriptMethodCaller = {
         call: (value, key, args) => {
-            value;
-            args;
-            // TODO: wire this up all the way
-            console.log("calling", key);
+            const natural = this.toNatural(value);
+            const result = natural[key](...args);
+            const convert = naturalToValue(value.environment, this.inverseNaturalMapping);
+            return convert(result);
         },
         callGetter: (value, key) => {
-            value;
-            // TODO: wire this up all the way
-            console.log("getting", key);
-            return new Value.Primitive(new Type.Primitive("number"), value.environment, 1);
+            const natural = this.toNatural(value);
+            const result = natural.__lookupGetter__(key)();
+            const convert = naturalToValue(value.environment, this.inverseNaturalMapping);
+            return convert(result);
         },
     };
     implementation: any;
@@ -137,6 +136,8 @@ export class TypescriptPlugin implements Core.Plugin {
         if (Core.fromRaw(types)) {
             this.types = types;
         }
+
+        this.setupTransformers();
     }
 
     validateEdge(src: Core.ElementValue, dst?: Core.ElementValue, like?: Core.ElementValue): boolean {
@@ -150,5 +151,28 @@ export class TypescriptPlugin implements Core.Plugin {
 
     makeProgram(model: Core.Model): Core.Program {
         return new TypescriptProgram(model, this);
+    }
+
+    private setupTransformers() {
+        this.naturalMapping = [];
+        const addRule = (t: Type.CustomObject) => {
+            const naturalType = this.implementation[t.name];
+            this.naturalMapping.push([t, naturalType]);
+            return naturalType;
+        };
+
+        addRule(this.types.graph.pluginType);
+        this.naturalStateType = addRule(this.types.state);
+
+        for (const nodeType of this.types.nodes.types) {
+            addRule(nodeType.pluginType);
+        }
+
+        for (const edgeType of this.types.edges.types) {
+            addRule(edgeType.pluginType);
+        }
+
+        this.toNatural = valueToNatural(new Map(this.naturalMapping));
+        this.inverseNaturalMapping = new Map(this.naturalMapping.map((([a, b]) => [b, a] as [Function, Type.CustomObject])));
     }
 }

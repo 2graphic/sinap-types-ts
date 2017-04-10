@@ -113,7 +113,7 @@ describe("Load Plugins", () => {
 
         for (let x = 0; x < 300; x++) {
             const str = x.toString(2);
-            const result = prog.run([Value.makePrimitive(prog.environment, str)]);
+            const result = prog.run([Value.makePrimitive(prog.model.environment, str)]);
             if (result.error) {
                 throw new Error("test failed error returned: " + result.error.value + " steps: " + result.steps.join(", "));
             }
