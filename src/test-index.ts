@@ -76,7 +76,7 @@ describe("Load Plugins", () => {
         expect(g.nodes[0].isAcceptState).to.be.true;
     });
 
-    it("computes divisibility", () => {
+    it("computes divisibility", async () => {
         const model = new Model(dfa);
         // for reference: makeNode(NodeKind)
         const q0 = model.makeNode();
@@ -112,7 +112,7 @@ describe("Load Plugins", () => {
 
         for (let x = 0; x < 300; x++) {
             const str = x.toString(2);
-            const result = prog.run([Value.makePrimitive(prog.model.environment, str)]);
+            const result = await prog.run([Value.makePrimitive(prog.model.environment, str)]);
             if (result.error) {
                 throw new Error("test failed error returned: " + result.error.value + " steps: " + result.steps.join(", "));
             }

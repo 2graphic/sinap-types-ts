@@ -39,7 +39,7 @@ export class TypescriptProgram implements Core.Program {
         this.model.graph.set("edges", edges);
     };
 
-    run(a: Value.Value[]): { steps: Value.CustomObject[], result?: Value.Value, error?: Value.Primitive } {
+    async run(a: Value.Value[]): Promise<{ steps: Value.CustomObject[], result?: Value.Value, error?: Value.Primitive }> {
         if (a.length !== this.plugin.types.arguments.length) {
             throw new Error("Program.run: incorrect arity");
         }
