@@ -1,4 +1,3 @@
-/// <reference path="../typings/index.d.ts" />
 import * as ts from "typescript";
 import { Type, Value } from "sinap-types";
 import { expect } from "chai";
