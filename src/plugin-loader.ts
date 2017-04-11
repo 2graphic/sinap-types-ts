@@ -51,6 +51,8 @@ export class CompilationResult {
 }
 
 export class TypescriptPluginLoader implements PluginLoader {
+    constructor(private appDirectory?: string) { };
+
     get name(): string {
         return "typescript";
     }
@@ -65,7 +67,7 @@ export class TypescriptPluginLoader implements PluginLoader {
         return readFile(pluginLocation).then((pluginScript) => {
             const host = createCompilerHost(new Map([
                 ["plugin.ts", pluginScript]
-            ]), options, emitter);
+            ]), options, emitter, this.appDirectory);
 
             const program = ts.createProgram(["plugin.ts"], options, host);
             // TODO: only compute if asked for.
@@ -84,7 +86,7 @@ export class TypescriptPluginLoader implements PluginLoader {
     }
 }
 
-function createCompilerHost(files: Map<string, string>, options: ts.CompilerOptions, emit: (name: string, content: string) => void): ts.CompilerHost {
+function createCompilerHost(files: Map<string, string>, options: ts.CompilerOptions, emit: (name: string, content: string) => void, appDirectory?: string): ts.CompilerHost {
     return {
         getSourceFile: (fileName): ts.SourceFile => {
             let source = files.get(fileName);
@@ -93,7 +95,7 @@ function createCompilerHost(files: Map<string, string>, options: ts.CompilerOpti
                 if (fileName.indexOf("/") !== -1) {
                     throw Error("no relative/absolute paths here");
                 }
-                source = fs.readFileSync(path.join("node_modules", "typescript", "lib", fileName), "utf8");
+                source = fs.readFileSync(path.join(appDirectory ? appDirectory : ".", "node_modules", "typescript", "lib", fileName), "utf8");
             }
 
             // any to suppress strict error about undefined
