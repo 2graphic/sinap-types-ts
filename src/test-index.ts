@@ -10,7 +10,7 @@ describe("Load Plugins", () => {
 
     let dfa: Plugin;
     before(() => {
-        return getInterpreterInfo(path.join("test-support", "dfa")).then((info) => loader.load(info.interpreterInfo))
+        return getInterpreterInfo(path.join("test-support", "dfa")).then((info) => loader.load(info))
             .then((plugin) => {
                 dfa = plugin;
             });

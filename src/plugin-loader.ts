@@ -1,5 +1,5 @@
 import * as ts from "typescript";
-import { InterpreterInfo, Plugin, PluginLoader } from "sinap-core";
+import { Plugin, PluginLoader, PluginInfo } from "sinap-core";
 import { TypescriptPlugin } from "./plugin";
 import * as fs from "fs";
 import * as path from "path";
@@ -55,8 +55,8 @@ export class TypescriptPluginLoader implements PluginLoader {
         return "typescript";
     }
 
-    load(pluginInfo: InterpreterInfo): Promise<Plugin> {
-        const pluginLocation = pluginInfo.interpreter;
+    load(pluginInfo: PluginInfo): Promise<Plugin> {
+        const pluginLocation = pluginInfo.interpreterInfo.interpreter;
         let script: string | undefined = undefined;
         function emitter(_: string, content: string): void {
             // TODO: actually use AMD for cicular dependencies

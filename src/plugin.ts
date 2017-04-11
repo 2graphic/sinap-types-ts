@@ -82,7 +82,7 @@ export class TypescriptPlugin implements Core.Plugin {
             ] as [Type.Type[], Type.Type]);
     }
 
-    constructor(program: ts.Program, readonly compilationResult: CompilationResult, readonly pluginInfo: Core.InterpreterInfo) {
+    constructor(program: ts.Program, readonly compilationResult: CompilationResult, readonly pluginInfo: Core.PluginInfo) {
         const checker = program.getTypeChecker();
         this.environment = new TypeScriptTypeEnvironment(checker, this.typescriptCaller);
         const pluginSourceFile = program.getSourceFile("plugin.ts");
