@@ -140,15 +140,6 @@ export class TypescriptPlugin implements Core.Plugin {
         this.setupTransformers();
     }
 
-    validateEdge(src: Core.ElementValue, dst?: Core.ElementValue, like?: Core.ElementValue): boolean {
-        src;
-        dst;
-        like;
-        // TODO: implement
-        return true;
-    }
-
-
     makeProgram(model: Core.Model): Core.Program {
         return new TypescriptProgram(model, this);
     }
