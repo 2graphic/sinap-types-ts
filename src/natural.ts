@@ -94,6 +94,21 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
 
     const typeOfV = typeof v;
     if (typeOfV === "object") {
+        if (Array.isArray(v)) {
+            const values = v.map(val => toValueInner(val, env, typeMap, transformation));
+            const types = values.map(val => val.type);
+            // TODO: logically condence
+            const type = new Type.Union(types);
+
+            const value = env.make(new Value.ArrayType(type)) as Value.ArrayObject;
+            for (const val of values) {
+                const valU = new Value.Union(type, env);
+                valU.value = val;
+                value.push(valU);
+            }
+            return value;
+        }
+
         let t = typeMap.get(Object.getPrototypeOf(v));
         let typeFields: Map<string, Type.Type> | undefined = undefined;
         if (!t) {

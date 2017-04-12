@@ -157,6 +157,15 @@ describe("natural", () => {
         expect(((value as Value.Record).value.hello as Value.Primitive).value).to.equal("world");
     });
 
+    it("wraps up arrays", () => {
+        const env = new Value.Environment();
+        const value = toValueInner(["test"], env, new Map(), new Map());
+        expect(value).to.instanceof(Value.ArrayObject);
+        expect((value as Value.ArrayObject).index(0)).to.instanceof(Value.Union);
+        expect(((value as Value.ArrayObject).index(0) as Value.Union).value).to.instanceof(Value.Primitive);
+        expect((((value as Value.ArrayObject).index(0) as Value.Union).value as Value.Primitive).value).to.equal("test");
+    });
+
     it("wraps up cyclic", () => {
         const env = new Value.Environment();
         const type = new Type.CustomObject("A", null, new Map([
