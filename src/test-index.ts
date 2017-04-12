@@ -1,7 +1,7 @@
 import { TypescriptPluginLoader } from ".";
 import { Type, Value } from "sinap-types";
 import { expect } from "chai";
-import { Model, Plugin, getInterpreterInfo } from "sinap-core";
+import { Model, Plugin, getPluginInfo } from "sinap-core";
 import { valueToNatural } from "./natural";
 import * as path from "path";
 
@@ -10,7 +10,7 @@ describe("Load Plugins", () => {
 
     let dfa: Plugin;
     before(() => {
-        return getInterpreterInfo(path.join("test-support", "dfa")).then((info) => loader.load(info))
+        return getPluginInfo(path.join("test-support", "dfa")).then((info) => loader.load(info))
             .then((plugin) => {
                 dfa = plugin;
             });

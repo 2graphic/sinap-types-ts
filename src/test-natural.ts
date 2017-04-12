@@ -68,6 +68,20 @@ describe("natural", () => {
         expect(uw.b.a).to.equal(uw);
         expect(uw.b).to.equal(uw.b.a.b);
     });
+    it("unwraps intesections", () => {
+        const env = new Value.Environment();
+        const A = new Type.CustomObject("A", null, new Map([["a", new Type.Primitive("string")]]));
+        const B = new Type.CustomObject("B", null, new Map([["b", new Type.Primitive("string")]]));
+
+        const a = new Value.CustomObject(new Type.Intersection([A, B]), env);
+        env.add(a);
+        a.set("a", new Value.Primitive(new Type.Primitive("string"), env, "aaaa"));
+        a.set("b", new Value.Primitive(new Type.Primitive("string"), env, "bb"));
+
+        const uw = fromValueInner(a, new Map());
+        expect(uw.a).to.equal("aaaa");
+        expect(uw.b).to.equal("bb");
+    });
 
     it("adds prototypes", () => {
         const env = new Value.Environment();
@@ -105,7 +119,7 @@ describe("natural", () => {
         A.members.set("b", B);
         iA.members.set("b", B);
 
-        const a = new Value.Intersection(iA, env);
+        const a = new Value.CustomObject(iA, env);
         const b = new Value.CustomObject(B, env);
         env.add(a);
         a.set("b", b);
@@ -201,9 +215,9 @@ describe("natural", () => {
         Object.setPrototypeOf(input, proto);
 
         const value = toValueInner(input, env, new Map([[proto, new Type.Intersection([type])]]), new Map());
-        expect(value).to.instanceof(Value.Intersection);
-        expect((value as Value.Intersection).get("a")).to.instanceof(Value.Primitive);
-        expect(((value as Value.Intersection).get("a") as Value.Primitive).value).to.equal("hello");
+        expect(value).to.instanceof(Value.CustomObject);
+        expect((value as Value.CustomObject).get("a")).to.instanceof(Value.Primitive);
+        expect(((value as Value.CustomObject).get("a") as Value.Primitive).value).to.equal("hello");
 
         expect((value as any).get("b").get("b").get("b").get("b")).to.equal(value);
     });

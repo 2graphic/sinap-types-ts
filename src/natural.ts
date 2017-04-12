@@ -123,7 +123,7 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
             if (typeFields) {
                 typeFields.set(key, innerV.type);
             }
-            if (value instanceof Value.CustomObject || (value instanceof Value.Intersection)) {
+            if (value instanceof Value.CustomObject) {
                 value.set(key, innerV);
             } else if (value instanceof Value.Record) {
                 value.value[key] = innerV;

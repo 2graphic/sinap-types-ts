@@ -60,7 +60,7 @@ export class TypescriptPlugin implements Core.Plugin {
         },
         callGetter: (value, key) => {
             const natural = this.toNatural(value);
-            const result = natural.__lookupGetter__(key)();
+            const result = natural.__lookupGetter__(key).call(natural);
             const convert = naturalToValue(value.environment, this.inverseNaturalMapping);
             return convert(result);
         },
