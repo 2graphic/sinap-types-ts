@@ -32,6 +32,19 @@ describe("Load Plugins", () => {
             .to.be.true;
     });
 
+    it("handles computed properties", () => {
+        const model = new Model(dfa);
+        const q0 = model.makeNode();
+
+        const v = Value.makePrimitive(model.environment, true);
+
+        q0.set("checkMe", v);
+        expect((q0.call("test") as Value.Primitive).value).to.equal("true");
+
+        v.value = false;
+        expect((q0.call("test") as Value.Primitive).value).to.equal("false");
+    });
+
     it("builds correct unwrapped structure", () => {
         expect(dfa.types.result.equals(new Type.Primitive("boolean"))).to.be.true;
 

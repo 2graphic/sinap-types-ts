@@ -5,6 +5,11 @@ export class DFANode {
     isAcceptState: boolean;
     children: DFAEdge[];
     label: string;
+
+    checkMe: boolean;
+    get test() {
+        return this.checkMe + "";
+    }
 }
 
 export class DFAEdge {
