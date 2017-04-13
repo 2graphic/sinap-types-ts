@@ -141,9 +141,11 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
 }
 
 export function valueToNatural(prototypes: Map<Type.CustomObject | Type.Intersection, Function>) {
-    const transformations = new Map<Value.Value, any>();
+    let transformations = new Map<Value.Value, any>();
 
     return function(value: Value.Value) {
+        // TODO: Why does this work?
+        transformations = new Map<Value.Value, any>();
         const newValue = fromValueInner(value, transformations);
         addPrototypes(transformations, prototypes);
         return newValue;
