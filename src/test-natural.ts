@@ -201,6 +201,33 @@ describe("natural", () => {
         expect((value as any).get("b").get("b").get("b").get("b")).to.equal(value);
     });
 
+    it("wraps up two cyclic", () => {
+        const env = new Value.Environment();
+        const type = new Type.CustomObject("A", null, new Map([
+            ["a", new Type.Primitive("string")],
+        ]));
+
+        type.members.set("b", type);
+
+        const proto = {};
+        const input1: any = { a: "hello" };
+        const input2: any = { a: "world" };
+        input1.b = input2;
+        input2.b = input1;
+        Object.setPrototypeOf(input1, proto);
+        Object.setPrototypeOf(input2, proto);
+
+        const value1 = toValueInner(input1, env, new Map([[proto, type]]), new Map());
+        const value2 = toValueInner(input2, env, new Map([[proto, type]]), new Map());
+        expect(value1).to.instanceof(Value.CustomObject);
+        expect(value2).to.instanceof(Value.CustomObject);
+        expect((value1 as Value.CustomObject).get("a")).to.instanceof(Value.Primitive);
+        expect(((value1 as Value.CustomObject).get("a") as Value.Primitive).value).to.equal("hello");
+
+        expect((value1 as any).get("b").get("b").get("b").get("b")).to.equal(value1);
+        expect((value2 as any).get("b").get("b").get("b").get("b")).to.equal(value2);
+    });
+
     it("wraps up intersections", () => {
         const env = new Value.Environment();
         const type = new Type.CustomObject("A", null, new Map([
