@@ -217,8 +217,9 @@ describe("natural", () => {
         Object.setPrototypeOf(input1, proto);
         Object.setPrototypeOf(input2, proto);
 
-        const value1 = toValueInner(input1, env, new Map([[proto, type]]), new Map());
-        const value2 = toValueInner(input2, env, new Map([[proto, type]]), new Map());
+        const m = new Map();
+        const value1 = toValueInner(input1, env, new Map([[proto, type]]), m);
+        const value2 = toValueInner(input2, env, new Map([[proto, type]]), m);
         expect(value1).to.instanceof(Value.CustomObject);
         expect(value2).to.instanceof(Value.CustomObject);
         expect((value1 as Value.CustomObject).get("a")).to.instanceof(Value.Primitive);
@@ -226,6 +227,7 @@ describe("natural", () => {
 
         expect((value1 as any).get("b").get("b").get("b").get("b")).to.equal(value1);
         expect((value2 as any).get("b").get("b").get("b").get("b")).to.equal(value2);
+        expect((value2 as any).get("b").get("b").get("b")).to.equal(value1);
     });
 
     it("wraps up intersections", () => {
