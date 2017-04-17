@@ -8,6 +8,7 @@ const addPrototypes = natural.__get__('addPrototypes');
 
 import { expect } from "chai";
 import { mapEquivalent, setEquivalent } from "sinap-types/lib/util";
+import { naturalToValue, valueToNatural } from "./natural";
 
 describe("natural", () => {
     it("unwraps primitives", () => {
@@ -67,6 +68,30 @@ describe("natural", () => {
         const uw = fromValueInner(a, new Map());
         expect(uw.b.a).to.equal(uw);
         expect(uw.b).to.equal(uw.b.a.b);
+    });
+    it("unwraps custom objects loops (again)", () => {
+        const env = new Value.Environment();
+        const A = new Type.CustomObject("A", null, new Map());
+        const B = new Type.CustomObject("B", null, new Map([["a", A]]));
+        A.members.set("b", B);
+
+        const AF = new Function();
+        const BF = new Function();
+
+        const a = new Value.CustomObject(A, env);
+        const b = new Value.CustomObject(B, env);
+        env.add(a);
+        a.set("b", b);
+        b.set("a", a);
+
+        const fromValue = valueToNatural(new Map([[A, AF], [B, BF]]));
+
+        const uwa = fromValue(a);
+        expect(uwa.b.a).to.equal(uwa);
+        expect(uwa.b).to.equal(uwa.b.a.b);
+        // TODO: make this next thing pass
+        // const uwb = fromValue(b);
+        // expect(uwb.a).to.equal(uwa);
     });
     it("unwraps intesections", () => {
         const env = new Value.Environment();
@@ -209,17 +234,17 @@ describe("natural", () => {
 
         type.members.set("b", type);
 
-        const proto = {};
+        const proto = new Function();
         const input1: any = { a: "hello" };
         const input2: any = { a: "world" };
         input1.b = input2;
         input2.b = input1;
-        Object.setPrototypeOf(input1, proto);
-        Object.setPrototypeOf(input2, proto);
+        Object.setPrototypeOf(input1, proto.prototype);
+        Object.setPrototypeOf(input2, proto.prototype);
 
-        const m = new Map();
-        const value1 = toValueInner(input1, env, new Map([[proto, type]]), m);
-        const value2 = toValueInner(input2, env, new Map([[proto, type]]), m);
+        const tv = naturalToValue(env, [[proto, type]]);
+        const value1 = tv(input1);
+        const value2 = tv(input2);
         expect(value1).to.instanceof(Value.CustomObject);
         expect(value2).to.instanceof(Value.CustomObject);
         expect((value1 as Value.CustomObject).get("a")).to.instanceof(Value.Primitive);
@@ -258,5 +283,47 @@ describe("natural", () => {
 
         const value = toValueInner({ __sinap_uuid: valueOriginal.uuid }, env, new Map(), new Map());
         expect(value).to.equal(valueOriginal);
+    });
+
+    it("when unwrapping unions uses inner object", () => {
+        const env = new Value.Environment();
+
+        const t1 = new Type.CustomObject("class", null, new Map([["hello", new Type.Primitive("string")]]));
+        const v1 = new Value.CustomObject(t1, env);
+        const vU = new Value.Union(new Type.Union([t1]), env);
+        env.add(vU);
+        vU.value = v1;
+
+        const pts: [Type.CustomObject, Function][] = [[t1, new Function()]];
+        const toNatural = valueToNatural(new Map(pts));
+        const toValue = naturalToValue(env, []);
+        const natural = toNatural(vU);
+        const value = toValue(natural);
+
+        expect(value).to.equal(v1);
+    });
+
+    it("uses type information when known", () => {
+        const env = new Value.Environment();
+
+        const t1 = new Type.CustomObject("class", null, new Map([["hello", new Type.Primitive("string")]]));
+        const v1 = new Value.CustomObject(t1, env);
+        env.add(v1);
+
+        const pts: [Type.CustomObject, Function][] = [[t1, new Function()]];
+
+        class State {
+            constructor(readonly arr: any[]) { }
+        }
+
+        pts.push([new Type.CustomObject("state", null, new Map([["arr", new Value.ArrayType(t1)]])), State]);
+        const toNatural = valueToNatural(new Map(pts));
+        const toValue = naturalToValue(env, pts.map(([t, f]) => [f, t] as [Function, Type.CustomObject]));
+        const natural = toNatural(v1);
+        const value = toValue(new State([natural])) as Value.CustomObject;
+
+        expect(value).to.instanceof(Value.CustomObject);
+        expect((value.get("arr") as Value.ArrayObject).index(0)).to.instanceof(Value.CustomObject);
+        expect((value.get("arr") as Value.ArrayObject).index(0)).to.equal(v1);
     });
 });

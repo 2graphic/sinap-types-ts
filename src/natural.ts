@@ -77,10 +77,13 @@ function addPrototypes(map: Map<Value.Value, any>, prototypes: Map<Type.CustomOb
     }
 }
 
-function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Type>, transformation: Map<any, Value.Value>): Value.Value {
+function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Type>, transformation: Map<any, Value.Value>, knownType: Type.Type | undefined): Value.Value {
     if (v.__sinap_uuid) {
         const value = env.values.get(v.__sinap_uuid);
         if (value) {
+            if (knownType && !Type.isSubtype(value.type, knownType)) {
+                throw new Error(`have a type hint and ${value.type.name} can't be assigned to ${knownType.name}`);
+            }
             return value;
         } else {
             throw new Error("referenced non longer extant object");
@@ -95,17 +98,36 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
     const typeOfV = typeof v;
     if (typeOfV === "object") {
         if (Array.isArray(v)) {
-            const values = v.map(val => toValueInner(val, env, typeMap, transformation));
+            let expectedParameterType: Type.Type | undefined = undefined;
+            if (knownType) {
+                if (!(knownType instanceof Value.ArrayType)) {
+                    throw new Error("known type is not an array");
+                }
+                expectedParameterType = knownType.typeParameter;
+            }
+            let values = v.map(val => toValueInner(val, env, typeMap, transformation, expectedParameterType));
             const types = values.map(val => val.type);
             // TODO: logically condence
-            const type = new Type.Union(types);
+            let type: Type.Type;
+            if (expectedParameterType) {
+                type = expectedParameterType;
+            } else {
+                type = new Type.Union(types);
+                values = values.map(val => {
+                    const valU = new Value.Union(type as Type.Union, env);
+                    valU.value = val;
+                    return valU;
+                });
+            }
 
             const value = env.make(new Value.ArrayType(type)) as Value.ArrayObject;
             for (const val of values) {
-                const valU = new Value.Union(type, env);
-                valU.value = val;
-                value.push(valU);
+                value.push(val);
             }
+            if (knownType && !Type.isSubtype(value.type, knownType)) {
+                throw new Error(`have a type hint and ${value.type.name} can't be assigned to ${knownType.name}`);
+            }
+
             return value;
         }
 
@@ -119,7 +141,11 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
         transformation.set(v, value);
 
         for (const key of Object.getOwnPropertyNames(v)) {
-            const innerV = toValueInner(v[key], env, typeMap, transformation);
+            let innerType: Type.Type | undefined = undefined;
+            if (t && (t instanceof Type.CustomObject)) {
+                innerType = t.members.get(key);
+            }
+            const innerV = toValueInner(v[key], env, typeMap, transformation, innerType);
             if (typeFields) {
                 typeFields.set(key, innerV.type);
             }
@@ -131,9 +157,16 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
                 throw new Error("unknown object kind");
             }
         }
+        if (knownType && !Type.isSubtype(value.type, knownType)) {
+            throw new Error(`have a type hint and ${value.type.name} can't be assigned to ${knownType.name}`);
+        }
+
         return value;
     } else if (typeOfV === "string" || typeOfV === "number" || typeOfV === "boolean") {
         const value = new Value.Primitive(new Type.Primitive(typeOfV), env, v);
+        if (knownType && !Type.isSubtype(value.type, knownType)) {
+            throw new Error(`have a type hint and ${value.type.name} can't be assigned to ${knownType.name}`);
+        }
         return value;
     } else {
         throw new Error(`cannot make ${v} a value`);
@@ -144,7 +177,6 @@ export function valueToNatural(prototypes: Map<Type.CustomObject | Type.Intersec
     let transformations = new Map<Value.Value, any>();
 
     return function(value: Value.Value) {
-        // TODO: Why does this work?
         transformations = new Map<Value.Value, any>();
         const newValue = fromValueInner(value, transformations);
         addPrototypes(transformations, prototypes);
@@ -156,6 +188,6 @@ export function naturalToValue(environment: Value.Environment, typeMap: Iterable
     const map = new Map([...typeMap].map(([a, b]) => [a.prototype, b] as [any, Type.Type]));
     const transformations = new Map<any, Value.Value>();
     return function(value: any) {
-        return toValueInner(value, environment, map, transformations);
+        return toValueInner(value, environment, map, transformations, undefined);
     };
 }
