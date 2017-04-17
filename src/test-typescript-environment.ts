@@ -95,5 +95,10 @@ describe("TS converter", () => {
         expect(numResult).to.instanceof(Value.Primitive);
         expect(numResult.type.name).to.equal("number");
         expect(numResult.value).to.equal(5);
+
+        const tuple12 = env.lookupType("tuple12", file) as Value.TupleType;
+        expect(tuple12).to.instanceof(Value.TupleType);
+        expect(tuple12.typeParameters[0].equals(new Type.Literal(1))).to.be.true;
+        expect(tuple12.typeParameters[1].equals(new Type.Literal("2"))).to.be.true;
     });
 });

@@ -45,3 +45,5 @@ class TestMethods {
         return 5;
     }
 }
+
+type tuple12 = [1, '2'];

@@ -32,7 +32,8 @@ export class TypeScriptTypeEnvironment {
     }
 
     lookupType(symbol: string, file: ts.SourceFile) {
-        return this.getType(this.checker.lookupTypeAt(symbol, file));
+        const type = this.checker.lookupTypeAt(symbol, file);
+        return this.getType(type);
     }
 
     getType(typeOriginal: ts.Type): Type.Type {
@@ -101,6 +102,12 @@ export class TypeScriptTypeEnvironment {
             wrapped = new Type.Intersection((type as ts.IntersectionType).types.map(t => this.getType(t)));
         } else if (type.flags & ts.TypeFlags.Object) ObjectIf: {
             const objectType = type as ts.ObjectType;
+
+            if ((objectType as any).target && ((objectType as any).target.objectFlags & ts.ObjectFlags.Tuple)) {
+                const args = (typeOriginal as any).typeArguments as ts.Type[];
+                return new Value.TupleType([...imap(a => this.getType(a), args)]);
+            }
+
             for (const key of (Object.keys(es6Builtins) as es6BuiltinNames[])) {
                 const tsType = this.es6Types[key];
                 if (tsType.getSymbol() === type.getSymbol()) {
