@@ -108,6 +108,27 @@ describe("natural", () => {
         expect(uw.b).to.equal("bb");
     });
 
+    it("handles tuples", () => {
+        const env = new Value.Environment();
+        const t = new Value.TupleType([new Type.Primitive("string"), new Type.Primitive("number")]);
+        const v = new Value.TupleObject(t, env);
+        env.add(v);
+        const vs = new Value.Primitive(new Type.Primitive("string"), env, "hello");
+        const vn = new Value.Primitive(new Type.Primitive("number"), env, 13);
+        v.index(0, vs);
+        v.index(1, vn);
+
+        const uw = fromValueInner(v, new Map());
+        const expectedResult = ["hello", 13];
+        (expectedResult as any).__sinap_uuid = v.uuid;
+        expect(uw).to.deep.equal(expectedResult);
+
+        const reWrapped = toValueInner(["hi", 12], env, new Map(), new Map(), t) as Value.TupleObject;
+        expect(reWrapped).to.instanceof(Value.TupleObject);
+        expect((reWrapped.index(0) as Value.Primitive).value).to.equal("hi");
+        expect((reWrapped.index(1) as Value.Primitive).value).to.equal(12);
+    });
+
     it("adds prototypes", () => {
         const env = new Value.Environment();
         const A = new Type.CustomObject("A", null, new Map());

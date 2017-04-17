@@ -99,6 +99,13 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
     if (typeOfV === "object") {
         if (Array.isArray(v)) {
             let expectedParameterType: Type.Type | undefined = undefined;
+            if (knownType instanceof Value.TupleType) {
+                const value = new Value.TupleObject(knownType, env);
+                v.forEach((val, idx) => {
+                    value.index(idx, toValueInner(val, env, typeMap, transformation, knownType.typeParameters[idx]));
+                });
+                return value;
+            }
             if (knownType) {
                 if (!(knownType instanceof Value.ArrayType)) {
                     throw new Error("known type is not an array");

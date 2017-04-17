@@ -47,3 +47,4 @@ class TestMethods {
 }
 
 type tuple12 = [1, '2'];
+type tuple12arr = [1, '2'][];

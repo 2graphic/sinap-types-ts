@@ -100,5 +100,9 @@ describe("TS converter", () => {
         expect(tuple12).to.instanceof(Value.TupleType);
         expect(tuple12.typeParameters[0].equals(new Type.Literal(1))).to.be.true;
         expect(tuple12.typeParameters[1].equals(new Type.Literal("2"))).to.be.true;
+
+        const tuple12arr = env.lookupType("tuple12arr", file) as Value.ArrayType;
+        expect(tuple12arr).to.instanceof(Value.ArrayType);
+        expect(tuple12arr.typeParameter).to.instanceof(Value.TupleType);
     });
 });

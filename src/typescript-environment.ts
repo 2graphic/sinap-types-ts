@@ -78,15 +78,15 @@ export class TypeScriptTypeEnvironment {
         };
     }
 
-    getTypeInner(typeOriginal: ts.Type): Type.Type {
+    getTypeInner(type: ts.Type): Type.Type {
         // this trick (getting the symbol and going back to the type)
         // helps get consistant pointer equal type object from typescript
-        const sym = typeOriginal.getSymbol();
-        let type = typeOriginal;
+        const sym = type.getSymbol();
+        let constructor: ts.Type | undefined = undefined;
         if (sym) {
             const t = this.checker.getTypeOfSymbol(sym);
             if (t && !(t.flags & ts.TypeFlags.Any)) {
-                type = t;
+                constructor = t;
             }
         }
         const t = this.types.get(type);
@@ -101,32 +101,41 @@ export class TypeScriptTypeEnvironment {
         } else if (type.flags & ts.TypeFlags.Intersection) {
             wrapped = new Type.Intersection((type as ts.IntersectionType).types.map(t => this.getType(t)));
         } else if (type.flags & ts.TypeFlags.Object) ObjectIf: {
-            const objectType = type as ts.ObjectType;
-
-            if ((objectType as any).target && ((objectType as any).target.objectFlags & ts.ObjectFlags.Tuple)) {
-                const args = (typeOriginal as any).typeArguments as ts.Type[];
-                return new Value.TupleType([...imap(a => this.getType(a), args)]);
+            if ((type as any).target && ((type as any).target.objectFlags & ts.ObjectFlags.Tuple)) {
+                const args = (type as any).typeArguments as ts.Type[];
+                wrapped = new Value.TupleType([...imap(a => this.getType(a), args)]);
+                break ObjectIf;
             }
 
-            for (const key of (Object.keys(es6Builtins) as es6BuiltinNames[])) {
-                const tsType = this.es6Types[key];
-                if (tsType.getSymbol() === type.getSymbol()) {
-                    const args: ts.Type[] = (typeOriginal as any).typeArguments;
-                    if (key === "Map") {
-                        wrapped = new es6Builtins[key](null as any, null as any);
-                        this.chores.push(() => {
-                            (wrapped as any).keyType = this.getType(args[0]);
-                            (wrapped as any).valueType = this.getType(args[1]);
-                        });
-                    } else {
-                        wrapped = new es6Builtins[key](null as any);
-                        this.chores.push(() => {
-                            (wrapped as any).typeParameter = this.getType(args[0]);
-                        });
+            if (constructor) {
+                for (const key of (Object.keys(es6Builtins) as es6BuiltinNames[])) {
+                    const tsType = this.es6Types[key];
+                    if (tsType.getSymbol() === constructor.getSymbol()) {
+                        const args: ts.Type[] = (type as any).typeArguments;
+                        if (key === "Map") {
+                            wrapped = new es6Builtins[key](null as any, null as any);
+                            this.chores.push(() => {
+                                (wrapped as any).keyType = this.getType(args[0]);
+                                (wrapped as any).valueType = this.getType(args[1]);
+                            });
+                        } else {
+                            wrapped = new es6Builtins[key](null as any);
+                            this.chores.push(() => {
+                                (wrapped as any).typeParameter = this.getType(args[0]);
+                            });
+                        }
+                        break ObjectIf;
                     }
-                    break ObjectIf;
                 }
             }
+            if (constructor) {
+                const t = this.types.get(constructor);
+                if (t) {
+                    return t;
+                }
+                type = constructor;
+            }
+            const objectType = type as ts.ObjectType;
 
             const members = new Map<string, Type.Type>();
             const visibility = new Map<string, boolean>();
@@ -173,7 +182,7 @@ export class TypeScriptTypeEnvironment {
             });
 
             let superType: null | Type.CustomObject = null;
-            const declaration = objectType.getSymbol().valueDeclaration;
+            const declaration = constructor && constructor.getSymbol().valueDeclaration;
             if (declaration && (declaration as ts.ClassDeclaration).heritageClauses) {
                 const extendsClauses = (declaration as ts.ClassDeclaration).heritageClauses!.filter(c => c.token === ts.SyntaxKind.ExtendsKeyword);
                 if (extendsClauses.length > 0) {
