@@ -7,7 +7,7 @@ Here is an example [DFA interpreter](test-support/dfa) if you want to follow alo
 ### Type Definitions
 All plugins must export the following types: `Nodes`, `Edges`, `Graph`, and `State`. `Nodes` and `Edges` can either be classes or unions of classes, `Graph` and `State` must be classes. Each of these classes can contain whatever fields they like, in addition, if they define certain special fields they'll be constrained to match what sinap expects the fields to be. 
 
-Nodes may specify a `parents` and/or a `children` field. It must be of type `T[]` where `T` is any subtype of `Edges` (including Unions of various edge types). If it is more specific than all the edge types, the IDE will prevent edges of non-matching types (**TODO: fix this feature**) from being attached to this node. 
+Nodes may specify a `parents` and/or a `children` field. It must be of type `T[]` where `T` is any subtype of `Edges` (including Unions of various edge types). If it is more specific than all the edge types, the IDE will prevent edges of non-matching types from being attached to this node. 
 
 Similarly, Edges may specify a `source` and/or `destination` field of type `T` where `T` is any subtype of `Nodes`. The IDE will likewise prevent invalid edges from being made. 
 
