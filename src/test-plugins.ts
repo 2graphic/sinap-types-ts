@@ -24,7 +24,7 @@ describe("Loads all plugins", () => {
         edge.set("write", new Value.Primitive(new Type.Primitive("string"), model.environment, "1"));
         const RightT = new Type.Literal("Right");
         const Right = new Value.Literal(RightT, model.environment);
-        const rU = new Value.Union(new Type.Union([RightT]), model.environment);
+        const rU = new Value.Union(new Type.Union([RightT, new Type.Literal("Left")]), model.environment);
         rU.value = Right;
         edge.set("move", rU);
 

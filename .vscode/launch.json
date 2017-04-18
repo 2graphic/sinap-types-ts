@@ -25,6 +25,19 @@
             "skipFiles": [
                 "${workspaceRoot}/node_modules/mocha/lib/*.js"
             ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "protocol": "inspector",
+            "name": "Turing Tests",
+            "cwd": "${workspaceRoot}/test-support/turing-machine/",
+            "outFiles": [
+                "${workspaceRoot}/test-support/turing-machine/*"
+            ],
+            "args": [
+                "${workspaceRoot}/test-support/turing-machine/test.js"
+            ]
         }
     ]
 }

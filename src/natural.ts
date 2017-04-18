@@ -139,6 +139,15 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
         }
 
         let t = typeMap.get(Object.getPrototypeOf(v));
+        if (knownType) {
+            if (!t) {
+                t = knownType;
+            } else {
+                if (!Type.isSubtype(t, knownType)) {
+                    throw new Error(`map type disagrees with knownType`);
+                }
+            }
+        }
         let typeFields: Map<string, Type.Type> | undefined = undefined;
         if (!t) {
             typeFields = new Map();
