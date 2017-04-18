@@ -91,6 +91,8 @@ describe("TS converter", () => {
 
         expect(TestMethods.methods.get("doIt")!.isGetter).to.be.false;
         expect(TestMethods.methods.get("num")!.isGetter).to.be.true;
+        expect(TestMethods.methods.get("meth1")!.returnType).to.be.null;
+
         const numResult = testMethodsObject.call("num") as Value.Primitive;
         expect(numResult).to.instanceof(Value.Primitive);
         expect(numResult.type.name).to.equal("number");

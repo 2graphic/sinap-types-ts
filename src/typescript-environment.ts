@@ -36,8 +36,10 @@ export class TypeScriptTypeEnvironment {
         return this.getType(type);
     }
 
-    getType(typeOriginal: ts.Type): Type.Type {
-        const value = this.getTypeInner(typeOriginal);
+    getType(typeOriginal: ts.Type): Type.Type;
+    getType(typeOriginal: ts.Type, voidOk: true): Type.Type | null;
+    getType(typeOriginal: ts.Type, voidOk = false) {
+        const value = this.getTypeInner(typeOriginal, voidOk);
         while (this.chores.length > 0) {
             this.chores.shift()!();
         }
@@ -48,7 +50,7 @@ export class TypeScriptTypeEnvironment {
         const declaration = symbol.valueDeclaration as ts.MethodDeclaration;
         const sig = this.checker.getSignatureFromDeclaration(declaration);
         const params = [...imap(s => this.getType(this.checker.getTypeOfSymbol(s)), sig.getParameters())];
-        const ret = this.getType(sig.getReturnType());
+        const ret = this.getType(sig.getReturnType(), true);
         const caller = this.methodCaller;
 
         let implementation = function(this: Value.CustomObject, ...args: Value.Value[]) {
@@ -78,7 +80,9 @@ export class TypeScriptTypeEnvironment {
         };
     }
 
-    getTypeInner(type: ts.Type): Type.Type {
+    getTypeInner(type: ts.Type, voidOk: false): Type.Type;
+    getTypeInner(type: ts.Type, voidOk: boolean): Type.Type | null;
+    getTypeInner(type: ts.Type, voidOk: boolean) {
         // this trick (getting the symbol and going back to the type)
         // helps get consistant pointer equal type object from typescript
         const sym = type.getSymbol();
@@ -212,6 +216,8 @@ export class TypeScriptTypeEnvironment {
             wrapped = new Type.Literal(Number((type as any).text));
         } else if (type.flags & ts.TypeFlags.BooleanLiteral) {
             wrapped = new Type.Literal((type as any).intrinsicName === "true");
+        } else if (voidOk && (type.flags & ts.TypeFlags.Void)) {
+            return null;
         } else {
             throw new Error("unknown type");
         }

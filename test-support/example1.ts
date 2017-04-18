@@ -41,6 +41,8 @@ class TestMethods {
         return x + '.';
     }
 
+    meth1() {}
+
     get num() {
         return 5;
     }
