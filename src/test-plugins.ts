@@ -29,9 +29,16 @@ describe("Loads all plugins", () => {
         edge.set("move", rU);
 
         const program = plugin.makeProgram(model);
-        const result = await program.run([new Value.Primitive(new Type.Primitive("string"), model.environment, "1")]);
-        expect(result.result).to.instanceof(Value.Primitive);
-        expect((result.result as Value.Primitive).value).to.equal(true);
+        {
+            const result = await program.run([new Value.Primitive(new Type.Primitive("string"), model.environment, "1")]);
+            expect(result.result).to.instanceof(Value.Primitive);
+            expect((result.result as Value.Primitive).value).to.equal(true);
+        }
+        {
+            const result = await program.run([new Value.Primitive(new Type.Primitive("string"), model.environment, "0")]);
+            expect(result.result).to.instanceof(Value.Primitive);
+            expect((result.result as Value.Primitive).value).to.equal(false);
+        }
     });
     it("loads DFA", async () => {
         const info = await getPluginInfo(path.join("test-support", "dfa"));
