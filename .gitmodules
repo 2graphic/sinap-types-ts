@@ -1,0 +1,15 @@
+[submodule "test-support/turing-machine"]
+	path = test-support/turing-machine
+	url = https://github.com/2graphic/turing-machine-plugin.git
+[submodule "test-support/dfa"]
+	path = test-support/dfa
+	url = https://github.com/2graphic/dfa-plugin.git
+[submodule "test-support/nfa"]
+	path = test-support/nfa
+	url = https://github.com/2graphic/nfa-plugin.git
+[submodule "test-support/pda"]
+	path = test-support/pda
+	url = https://github.com/2graphic/pda-plugin.git
+[submodule "test-support/circuits"]
+	path = test-support/circuits
+	url = https://github.com/2graphic/circuits-plugin.git

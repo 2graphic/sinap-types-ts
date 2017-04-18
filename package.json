@@ -1,7 +1,7 @@
 {
   "name": "sinap-typescript",
   "description": "Bindings for synap-types from typescript",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "readme": "README.md",
   "license": "MIT",
   "repository": {

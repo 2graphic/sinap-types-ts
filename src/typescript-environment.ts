@@ -107,7 +107,10 @@ export class TypeScriptTypeEnvironment {
         } else if (type.flags & ts.TypeFlags.Object) ObjectIf: {
             if ((type as any).target && ((type as any).target.objectFlags & ts.ObjectFlags.Tuple)) {
                 const args = (type as any).typeArguments as ts.Type[];
-                wrapped = new Value.TupleType([...imap(a => this.getType(a), args)]);
+                const wrappedType = new Value.TupleType([]);
+                this.types.set(type, wrappedType);
+                wrappedType.typeParameters.push(...imap(a => this.getType(a), args));
+                wrapped = wrappedType;
                 break ObjectIf;
             }
 
@@ -146,6 +149,31 @@ export class TypeScriptTypeEnvironment {
             const prettyNames = new Map<string, string>();
             const methods = new Map<string, Type.MethodObject>();
             const tsMembers = objectType.getSymbol().members;
+
+            let superType: null | Type.CustomObject = null;
+            const declaration = constructor && constructor.getSymbol().valueDeclaration;
+            if (declaration && (declaration as ts.ClassDeclaration).heritageClauses) {
+                const extendsClauses = (declaration as ts.ClassDeclaration).heritageClauses!.filter(c => c.token === ts.SyntaxKind.ExtendsKeyword);
+                if (extendsClauses.length > 0) {
+                    // TODO: find a less magical way to do this, no idea whats going on
+                    const superTypeTSE = this.checker.getSymbolAtLocation(extendsClauses[0].types[0].expression);
+                    const superTypeTS = this.checker.getTypeOfSymbol((superTypeTSE.valueDeclaration as any).symbol);
+                    const superTypeMaybe = this.getType(superTypeTS);
+                    if (superTypeMaybe instanceof Type.CustomObject) {
+                        superType = superTypeMaybe;
+                    } else {
+                        throw new Error("invalid supertype");
+                    }
+                }
+            }
+            if (objectType.getSymbol().flags & ts.SymbolFlags.Class) {
+                wrapped = new Type.CustomObject(objectType.getSymbol().name, superType, members, methods, prettyNames, visibility);
+                this.types.set(type, wrapped);
+            } else {
+                wrapped = new Type.Record("Record", members, prettyNames, visibility);
+                this.types.set(type, wrapped);
+            }
+
             if (!tsMembers) {
                 throw new Error("work on this");
             }
@@ -184,28 +212,6 @@ export class TypeScriptTypeEnvironment {
                 }
 
             });
-
-            let superType: null | Type.CustomObject = null;
-            const declaration = constructor && constructor.getSymbol().valueDeclaration;
-            if (declaration && (declaration as ts.ClassDeclaration).heritageClauses) {
-                const extendsClauses = (declaration as ts.ClassDeclaration).heritageClauses!.filter(c => c.token === ts.SyntaxKind.ExtendsKeyword);
-                if (extendsClauses.length > 0) {
-                    // TODO: find a less magical way to do this, no idea whats going on
-                    const superTypeTSE = this.checker.getSymbolAtLocation(extendsClauses[0].types[0].expression);
-                    const superTypeTS = this.checker.getTypeOfSymbol((superTypeTSE.valueDeclaration as any).symbol);
-                    const superTypeMaybe = this.getType(superTypeTS);
-                    if (superTypeMaybe instanceof Type.CustomObject) {
-                        superType = superTypeMaybe;
-                    } else {
-                        throw new Error("invalid supertype");
-                    }
-                }
-            }
-            if (objectType.getSymbol().flags & ts.SymbolFlags.Class) {
-                wrapped = new Type.CustomObject(objectType.getSymbol().name, superType, members, methods, prettyNames, visibility);
-            } else {
-                wrapped = new Type.Record("Record", members, prettyNames, visibility);
-            }
         } else if (type.flags & ts.TypeFlags.String) {
             wrapped = new Type.Primitive("string");
         } else if (type.flags & ts.TypeFlags.Number) {

@@ -5,12 +5,12 @@ export class DFANode {
     isAcceptState: boolean;
     children: DFAEdge[];
     label: string;
-
     checkMe: boolean;
     get test() {
         return this.checkMe + "";
     }
 }
+
 
 export class DFAEdge {
     /** Symbol */
@@ -19,7 +19,7 @@ export class DFAEdge {
 }
 
 export class DFAGraph {
-    nodes: DFANode[];
+    nodes: Nodes[];
     // startState: DFANode;
 }
 
@@ -45,7 +45,7 @@ function isEmpty(label?: string) {
     return true;
 }
 
-export function start(input: DFAGraph, data: string): State {
+export function start(input: DFAGraph, data: string): State | boolean {
     let start: DFANode | null = null;
     const accepts = new Set<DFANode>();
 
@@ -64,18 +64,18 @@ export function start(input: DFAGraph, data: string): State {
 
         if (node.children) {
             let transitions = new Set<string>();
-                for (const edge of node.children) {
-                    if (isEmpty(edge.label)) {
-                        throw new Error("Lambda transition from " + node.label + " to " + edge.destination.label + " is not allowed");
-                    }
-                    if (edge.label.length > 1) {
-                        throw new Error("Edge " + edge.label + " must be one symbol");
-                    }
-                    if (transitions.has(edge.label)) {
-                        throw new Error("Nondeterministic edge " + edge.label + (isEmpty(node.label) ? "" : (" from node: " + node.label)));
-                    }
-                    transitions.add(edge.label);
+            for (const edge of node.children) {
+                if (isEmpty(edge.label)) {
+                    throw new Error("Lambda transition from " + node.label + " to " + edge.destination.label + " is not allowed");
                 }
+                if (edge.label.length > 1) {
+                    throw new Error("Edge " + edge.label + " must be one symbol");
+                }
+                if (transitions.has(edge.label)) {
+                    throw new Error("Nondeterministic edge " + edge.label + (isEmpty(node.label) ? "" : (" from node: " + node.label)));
+                }
+                transitions.add(edge.label);
+            }
         }
     }
 
