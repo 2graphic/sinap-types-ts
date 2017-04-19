@@ -106,5 +106,48 @@ describe("TS converter", () => {
         const tuple12arr = env.lookupType("tuple12arr", file) as Value.ArrayType;
         expect(tuple12arr).to.instanceof(Value.ArrayType);
         expect(tuple12arr.typeParameter).to.instanceof(Value.TupleType);
+
+        const UnionAD = env.lookupType("UnionAD", file) as Type.Union;
+        expect(UnionAD.types.values().next().value).to.equals(A);
+
+        const SomethingWithAnA = env.lookupType("SomethingWithAnA", file) as Type.CustomObject;
+        expect(SomethingWithAnA.members.get("a")).to.equals(A);
+
+        const interA = env.lookupType("interA", file) as Type.CustomObject;
+        expect(interA.members.get("a")).to.equals(A);
+
+        const SelfReferentialObject = env.lookupType("SelfReferentialObject", file) as Type.CustomObject;
+        expect(SelfReferentialObject.members.get("s")).to.equals(SelfReferentialObject);
+    });
+
+    it("converts example2", () => {
+        const options: ts.CompilerOptions = {
+            noEmitOnError: false,
+            noImplicitAny: true,
+            target: ts.ScriptTarget.ES2016,
+            removeComments: false,
+        };
+
+
+        const program = ts.createProgram(["test-support/example2.ts"], options);
+        const checker = program.getTypeChecker();
+        const env = new TypeScriptTypeEnvironment(checker, null as any);
+        const file = program.getSourceFile("test-support/example2.ts");
+        const A = env.lookupType("A", file) as Type.CustomObject;
+
+        const a = A.members.get("c") as Type.Union;
+        expect(a).to.instanceof(Type.Union);
+        const b = a.types.values().next().value as Type.Intersection;
+        expect(b).to.instanceof(Type.Intersection);
+        const c = b.types.values().next().value as Type.CustomObject;
+        expect(c).to.instanceof(Type.CustomObject);
+        const d = c.members.get("a") as Value.ArrayType;
+        expect(d).to.instanceof(Value.ArrayType);
+        const e = d.typeParameter as Type.Union;
+        expect(e).to.instanceof(Type.Union);
+        const f = e.types.values().next().value as Type.Intersection;
+        expect(f).to.instanceof(Type.Intersection);
+        const g = f.types.values().next().value as Type.CustomObject;
+        expect(g).to.equal(A);
     });
 });

@@ -1,15 +1,35 @@
 import { TypescriptPluginLoader } from ".";
-import { getPluginInfo, Model } from "sinap-core";
+import { getPluginInfo, Model, Plugin } from "sinap-core";
 import * as path from "path";
 import { expect } from "chai";
 import { Type, Value } from "sinap-types";
+import { TypescriptPlugin } from "./plugin";
 
-describe("Loads all plugins", () => {
+function verifyReserial(m1: Model, p: Plugin) {
+    const s1 = m1.serialize();
+    const m2 = Model.fromSerial(s1, p);
+    const s2 = m2.serialize();
+    const m3 = Model.fromSerial(s2, p);
+    const s3 = m3.serialize();
+
+    expect(s3).to.deep.equal(s1);
+    expect(s3).to.deep.equal(s2);
+}
+
+describe("Actual Plugins", () => {
     const loader = new TypescriptPluginLoader();
+    async function loadPlugin(...p: string[]) {
+        const info = await getPluginInfo(path.join(...p));
+        const plugin = await loader.load(info) as TypescriptPlugin;
+        expect(plugin.compilationResult.diagnostics.global.length).to.equal(0);
+        expect(plugin.compilationResult.diagnostics.semantic.length).to.equal(0);
+        expect(plugin.compilationResult.diagnostics.syntactic.length).to.equal(0);
+        return plugin;
+    }
+
 
     it("runs Turing machine", async () => {
-        const info = await getPluginInfo(path.join("test-support", "turing-machine"));
-        const plugin = await loader.load(info);
+        const plugin = await loadPlugin("test-support", "turing-machine");
 
         const model = new Model(plugin);
         const q1 = model.makeNode();
@@ -39,21 +59,52 @@ describe("Loads all plugins", () => {
             expect(result.result).to.instanceof(Value.Primitive);
             expect((result.result as Value.Primitive).value).to.equal(false);
         }
+
+        verifyReserial(model, plugin);
     });
     it("loads DFA", async () => {
-        const info = await getPluginInfo(path.join("test-support", "dfa"));
-        await loader.load(info);
+        const plugin = await loadPlugin("test-support", "dfa");
+
+        const model = new Model(plugin);
+        model.makeEdge(undefined, model.makeNode(), model.makeNode());
+
+        const prog = plugin.makeProgram(model);
+        prog.validate();
+
+        verifyReserial(model, plugin);
+
     });
     it("loads NFA", async () => {
-        const info = await getPluginInfo(path.join("test-support", "nfa"));
-        await loader.load(info);
+        const plugin = await loadPlugin("test-support", "nfa");
+
+        const model = new Model(plugin);
+        model.makeEdge(undefined, model.makeNode(), model.makeNode());
+
+        const prog = plugin.makeProgram(model);
+        prog.validate();
+
+        verifyReserial(model, plugin);
     });
     it("loads PDA", async () => {
-        const info = await getPluginInfo(path.join("test-support", "pda"));
-        await loader.load(info);
+        const plugin = await loadPlugin("test-support", "pda");
+
+        const model = new Model(plugin);
+        model.makeEdge(undefined, model.makeNode(), model.makeNode());
+
+        const prog = plugin.makeProgram(model);
+        prog.validate();
+
+        verifyReserial(model, plugin);
     });
     it("loads Circuits", async () => {
-        const info = await getPluginInfo(path.join("test-support", "circuits"));
-        await loader.load(info);
+        const plugin = await loadPlugin("test-support", "circuits");
+
+        const model = new Model(plugin);
+        model.makeEdge(undefined, model.makeNode(), model.makeNode());
+
+        const prog = plugin.makeProgram(model);
+        prog.validate();
+
+        verifyReserial(model, plugin);
     });
 });

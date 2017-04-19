@@ -1,6 +1,6 @@
 interface Blah {}
 
-class A implements Blah {
+export class A implements Blah {
     a: string;
 }
 
@@ -50,3 +50,16 @@ class TestMethods {
 
 type tuple12 = [1, '2'];
 type tuple12arr = [1, '2'][];
+
+
+type UnionAD = A | D;
+
+class SomethingWithAnA {
+    a: A;
+}
+
+type interA = SomethingWithAnA & D;
+
+class SelfReferentialObject {
+    s: SelfReferentialObject;
+}

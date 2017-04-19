@@ -23,7 +23,6 @@ export interface TypescriptMethodCaller {
 export class TypeScriptTypeEnvironment {
     private types = new Map<ts.Type, Type.Type>();
     private es6Types: { [a: string]: ts.Type } = {};
-    private chores: (() => void)[] = [];
 
     constructor(public checker: ts.TypeChecker, private methodCaller: TypescriptMethodCaller) {
         for (const key in es6Builtins) {
@@ -34,16 +33,6 @@ export class TypeScriptTypeEnvironment {
     lookupType(symbol: string, file: ts.SourceFile) {
         const type = this.checker.lookupTypeAt(symbol, file);
         return this.getType(type);
-    }
-
-    getType(typeOriginal: ts.Type): Type.Type;
-    getType(typeOriginal: ts.Type, voidOk: true): Type.Type | null;
-    getType(typeOriginal: ts.Type, voidOk = false) {
-        const value = this.getTypeInner(typeOriginal, voidOk);
-        while (this.chores.length > 0) {
-            this.chores.shift()!();
-        }
-        return value;
     }
 
     getMethod(symbol: ts.Symbol, name: string): Type.MethodObject {
@@ -80,9 +69,10 @@ export class TypeScriptTypeEnvironment {
         };
     }
 
-    getTypeInner(type: ts.Type, voidOk: false): Type.Type;
-    getTypeInner(type: ts.Type, voidOk: boolean): Type.Type | null;
-    getTypeInner(type: ts.Type, voidOk: boolean) {
+    getType(type: ts.Type): Type.Type;
+    getType(type: ts.Type, voidOk: false): Type.Type;
+    getType(type: ts.Type, voidOk: boolean): Type.Type | null;
+    getType(type: ts.Type, voidOk = false) {
         // this trick (getting the symbol and going back to the type)
         // helps get consistant pointer equal type object from typescript
         const sym = type.getSymbol();
@@ -91,6 +81,10 @@ export class TypeScriptTypeEnvironment {
             const t = this.checker.getTypeOfSymbol(sym);
             if (t && !(t.flags & ts.TypeFlags.Any)) {
                 constructor = t;
+                const constructorMapped = this.types.get(constructor);
+                if (constructorMapped) {
+                    return constructorMapped;
+                }
             }
         }
         const t = this.types.get(type);
@@ -121,25 +115,19 @@ export class TypeScriptTypeEnvironment {
                         const args: ts.Type[] = (type as any).typeArguments;
                         if (key === "Map") {
                             wrapped = new es6Builtins[key](null as any, null as any);
-                            this.chores.push(() => {
-                                (wrapped as any).keyType = this.getType(args[0]);
-                                (wrapped as any).valueType = this.getType(args[1]);
-                            });
+                            this.types.set(type, wrapped);
+                            (wrapped as any).keyType = this.getType(args[0]);
+                            (wrapped as any).valueType = this.getType(args[1]);
                         } else {
                             wrapped = new es6Builtins[key](null as any);
-                            this.chores.push(() => {
-                                (wrapped as any).typeParameter = this.getType(args[0]);
-                            });
+                            this.types.set(type, wrapped);
+                            (wrapped as any).typeParameter = this.getType(args[0]);
                         }
                         break ObjectIf;
                     }
                 }
             }
             if (constructor) {
-                const t = this.types.get(constructor);
-                if (t) {
-                    return t;
-                }
                 type = constructor;
             }
             const objectType = type as ts.ObjectType;
@@ -150,7 +138,20 @@ export class TypeScriptTypeEnvironment {
             const methods = new Map<string, Type.MethodObject>();
             const tsMembers = objectType.getSymbol().members;
 
-            let superType: null | Type.CustomObject = null;
+            if (objectType.getSymbol().flags & ts.SymbolFlags.Class) {
+                wrapped = new Type.CustomObject(objectType.getSymbol().name, null, members, methods, prettyNames, visibility);
+                if (this.types.has(type) && this.types.get(type) !== wrapped) {
+                    throw new Error(`something very wrong is going on, type is already mapped (${wrapped.name})`);
+                }
+                this.types.set(type, wrapped);
+            } else {
+                wrapped = new Type.Record(members, prettyNames, visibility);
+                if (this.types.has(type) && this.types.get(type) !== wrapped) {
+                    throw new Error("something very wrong is going on, type is already mapped");
+                }
+                this.types.set(type, wrapped);
+            }
+
             const declaration = constructor && constructor.getSymbol().valueDeclaration;
             if (declaration && (declaration as ts.ClassDeclaration).heritageClauses) {
                 const extendsClauses = (declaration as ts.ClassDeclaration).heritageClauses!.filter(c => c.token === ts.SyntaxKind.ExtendsKeyword);
@@ -160,25 +161,20 @@ export class TypeScriptTypeEnvironment {
                     const superTypeTS = this.checker.getTypeOfSymbol((superTypeTSE.valueDeclaration as any).symbol);
                     const superTypeMaybe = this.getType(superTypeTS);
                     if (superTypeMaybe instanceof Type.CustomObject) {
-                        superType = superTypeMaybe;
+                        if (wrapped instanceof Type.CustomObject) {
+                            (wrapped as any).superType = superTypeMaybe;
+                        }
                     } else {
                         throw new Error("invalid supertype");
                     }
                 }
-            }
-            if (objectType.getSymbol().flags & ts.SymbolFlags.Class) {
-                wrapped = new Type.CustomObject(objectType.getSymbol().name, superType, members, methods, prettyNames, visibility);
-                this.types.set(type, wrapped);
-            } else {
-                wrapped = new Type.Record(members, prettyNames, visibility);
-                this.types.set(type, wrapped);
             }
 
             if (!tsMembers) {
                 throw new Error("work on this");
             }
             tsMembers.forEach((element, key) => {
-                if (element.name === "__constructor") {
+                if (element.name[0] === "_" && element.name[1] === "_") {
                     return;
                 }
 
