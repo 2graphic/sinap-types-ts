@@ -151,7 +151,7 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
         let typeFields: Map<string, Type.Type> | undefined = undefined;
         if (!t) {
             typeFields = new Map();
-            t = new Type.Record("Record", typeFields);
+            t = new Type.Record(typeFields);
         }
         const value = env.make(t);
         transformation.set(v, value);

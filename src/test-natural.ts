@@ -18,7 +18,7 @@ describe("natural", () => {
     });
     it("unwraps records", () => {
         const env = new Value.Environment();
-        const v = new Value.Record(new Type.Record("name", new Map([["hi", new Type.Primitive("string")]])), env);
+        const v = new Value.Record(new Type.Record(new Map([["hi", new Type.Primitive("string")]])), env);
         const uv = fromValueInner(v, new Map());
         expect(uv).to.deep.equal({
             __sinap_uuid: v.uuid,

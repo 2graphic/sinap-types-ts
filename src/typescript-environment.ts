@@ -170,7 +170,7 @@ export class TypeScriptTypeEnvironment {
                 wrapped = new Type.CustomObject(objectType.getSymbol().name, superType, members, methods, prettyNames, visibility);
                 this.types.set(type, wrapped);
             } else {
-                wrapped = new Type.Record("Record", members, prettyNames, visibility);
+                wrapped = new Type.Record(members, prettyNames, visibility);
                 this.types.set(type, wrapped);
             }
 
