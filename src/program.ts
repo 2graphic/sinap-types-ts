@@ -7,7 +7,7 @@ import { naturalToValue } from "./natural";
 
 export class TypescriptProgram implements Core.Program {
     readonly model: Model;
-    readonly toValue: (a: any) => Value.Value;
+    readonly toValue: (a: any, knownType?: Type.Type) => Value.Value;
 
     constructor(modelIn: Model, public plugin: TypescriptPlugin) {
         this.model = Model.fromSerial(modelIn.serialize(), plugin);
@@ -62,14 +62,30 @@ export class TypescriptProgram implements Core.Program {
         const steps: Value.CustomObject[] = [];
 
         while (state instanceof this.plugin.naturalStateType) {
-            steps.push(this.toValue(state) as Value.CustomObject);
+            steps.push(this.toValue(state, this.plugin.types.state) as Value.CustomObject);
             try {
                 state = this.plugin.implementation.step(state);
             } catch (err) {
                 return { steps: steps, error: Value.makePrimitive(this.model.environment, err) };
             }
         }
-        return { steps: steps, result: this.toValue(state) };
+
+        // TODO: fixup
+        let res: Value.Value;
+        if (this.plugin.types.result instanceof Type.Union) FoundAResult: {
+            for (const type of this.plugin.types.result.types) {
+                try {
+                    res = this.toValue(state, type);
+                    break FoundAResult;
+                } catch (err) {
+                }
+            }
+            throw new Error("no types worked");
+        } else {
+            res = this.toValue(state, this.plugin.types.result);
+        }
+
+        return { steps: steps, result: res };
     }
 
     validate() {

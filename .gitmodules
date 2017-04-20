@@ -13,3 +13,6 @@
 [submodule "test-support/circuits"]
 	path = test-support/circuits
 	url = https://github.com/2graphic/circuits-plugin.git
+[submodule "test-support/bfs"]
+	path = test-support/bfs
+	url = https://github.com/Sheyne/sinap-bfs-plugin

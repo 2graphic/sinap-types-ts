@@ -203,7 +203,7 @@ export function valueToNatural(prototypes: Map<Type.CustomObject | Type.Intersec
 export function naturalToValue(environment: Value.Environment, typeMap: Iterable<[Function, Type.Type]>) {
     const map = new Map([...typeMap].map(([a, b]) => [a.prototype, b] as [any, Type.Type]));
     const transformations = new Map<any, Value.Value>();
-    return function(value: any) {
-        return toValueInner(value, environment, map, transformations, undefined);
+    return function(value: any, knownType?: Type.Type) {
+        return toValueInner(value, environment, map, transformations, knownType);
     };
 }
