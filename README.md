@@ -27,6 +27,7 @@ step(state: State): State | V
 where in addition to `graph` start can take any number of arguments of any type. When the program is run, start will be called once, and step will be called on the resulting state (if start returns a `State`) until the return value is not a `State`. The `State`s will be saved, as used by the IDE to support stepping forward and backward for debugging. The real return value (an arbitrary type denoted `V` above) will be displayed as the result of the computation. 
 
 # Example Plugin
+[ExamplePlugin.zip](https://github.com/2graphic/sinap-typescript-loader/releases/download/v0.4.15/ExamplePlugin.zip)
 
 package.json:
 ```{json}
