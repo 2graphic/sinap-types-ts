@@ -2,16 +2,17 @@ import * as Core from "sinap-core";
 import { TypescriptPlugin } from "./plugin";
 import { Type, Value } from "sinap-types";
 import { Model } from "sinap-core";
-import { naturalToValue } from "./natural";
 
 
 export class TypescriptProgram implements Core.Program {
+    toValue: (value: any, knownType?: Type.Type | undefined) => Value.Value;
+    toNatural: (value: Value.Value) => any;
     readonly model: Model;
-    readonly toValue: (a: any, knownType?: Type.Type) => Value.Value;
 
     constructor(modelIn: Model, public plugin: TypescriptPlugin) {
         this.model = Model.fromSerial(modelIn.serialize(), plugin);
-        this.toValue = naturalToValue(this.model.environment, this.plugin.inverseNaturalMapping);
+        this.toNatural = this.plugin.toNatural();
+        this.toValue = this.plugin.toValue(this.model.environment);
 
         const nodes = new Value.ArrayObject(new Value.ArrayType(plugin.types.nodes), this.model.environment);
         const edges = new Value.ArrayObject(new Value.ArrayType(plugin.types.edges), this.model.environment);
@@ -50,8 +51,8 @@ export class TypescriptProgram implements Core.Program {
         });
 
 
-        const unwrappedGraph = this.plugin.toNatural(this.model.graph);
-        const unwrappedInputs = a.map(v => this.plugin.toNatural(v));
+        const unwrappedGraph = this.toNatural(this.model.graph);
+        const unwrappedInputs = a.map(v => this.toNatural(v));
 
         let state: any;
         try {
@@ -89,7 +90,7 @@ export class TypescriptProgram implements Core.Program {
     }
 
     validate() {
-        const unwrappedGraph = this.plugin.toNatural(this.model.graph);
+        const unwrappedGraph = this.plugin.toNatural()(this.model.graph);
 
         try {
             this.plugin.implementation.start(unwrappedGraph, "");

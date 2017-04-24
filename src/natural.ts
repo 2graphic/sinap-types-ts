@@ -1,6 +1,6 @@
 
 import { Value, Type } from "sinap-types";
-import { deepCopy } from "sinap-types/lib/util";
+import { deepCopy, ifilter } from "sinap-types/lib/util";
 
 function flatteningDeepCopy(rep: any, env: Value.Environment, map: Map<Value.Value, any>, dest: any) {
     return deepCopy(rep, (reference) => {
@@ -81,7 +81,15 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
     if (v.__sinap_uuid) {
         const value = env.values.get(v.__sinap_uuid);
         if (value) {
-            if (knownType && !Type.isSubtype(value.type, knownType)) {
+            if (knownType instanceof Type.Union) {
+                if (ifilter(t => Type.isSubtype(value.type, t), knownType.types)[Symbol.iterator]().next().done) {
+                    throw new Error(`have a type hint and ${value.type.name} can't be assigned to ${knownType.name}`);
+                } else {
+                    const v = new Value.Union(knownType, env);
+                    v.value = value;
+                    return v;
+                }
+            } else if (knownType && !Type.isSubtype(value.type, knownType)) {
                 throw new Error(`have a type hint and ${value.type.name} can't be assigned to ${knownType.name}`);
             }
             return value;
@@ -193,7 +201,6 @@ export function valueToNatural(prototypes: Map<Type.CustomObject | Type.Intersec
     let transformations = new Map<Value.Value, any>();
 
     return function(value: Value.Value) {
-        transformations = new Map<Value.Value, any>();
         const newValue = fromValueInner(value, transformations);
         addPrototypes(transformations, prototypes);
         return newValue;

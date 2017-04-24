@@ -45,7 +45,7 @@ describe("Load Plugins", () => {
         expect((q0.call("test") as Value.Primitive).value).to.equal("false");
     });
 
-    it("builds correct unwrapped structure", () => {
+    it("builds correct unwrapped structure", async () => {
         expect(dfa.types.result.equals(new Type.Primitive("boolean"))).to.be.true;
 
         const model = new Model(dfa);
@@ -73,7 +73,7 @@ describe("Load Plugins", () => {
         const e21 = model.makeEdge(undefined, q2, q2);
         e21.set("label", Value.makePrimitive(model.environment, "1"));
 
-        const prog = dfa.makeProgram(model);
+        const prog = await dfa.makeProgram(model);
 
         const toNatural = valueToNatural(new Map());
         const g = toNatural(prog.model.graph);
@@ -119,7 +119,7 @@ describe("Load Plugins", () => {
         const e21 = model.makeEdge(undefined, q2, q2);
         e21.set("label", Value.makePrimitive(model.environment, "1"));
 
-        const prog = dfa.makeProgram(model);
+        const prog = await dfa.makeProgram(model);
         const progQ0 = prog.model.environment.values.get(q0.uuid)!;
         const progQ1 = prog.model.environment.values.get(q1.uuid)!;
 

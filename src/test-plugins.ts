@@ -5,6 +5,7 @@ import { expect } from "chai";
 import { Type, Value } from "sinap-types";
 import { TypescriptPlugin } from "./plugin";
 import { imap } from "sinap-types/lib/util";
+import { TypescriptProgram } from "./program";
 
 function verifyReserial(m1: Model, p: Plugin) {
     const s1 = m1.serialize();
@@ -53,7 +54,7 @@ describe("Actual Plugins", () => {
         rU.value = Right;
         edge.set("move", rU);
 
-        const program = plugin.makeProgram(model);
+        const program = await plugin.makeProgram(model);
         {
             const result = await program.run([new Value.Primitive(new Type.Primitive("string"), model.environment, "1")]);
             expect(result.result).to.instanceof(Value.Primitive);
@@ -73,7 +74,7 @@ describe("Actual Plugins", () => {
         const model = new Model(plugin);
         model.makeEdge(undefined, model.makeNode(), model.makeNode());
 
-        const prog = plugin.makeProgram(model);
+        const prog = await plugin.makeProgram(model);
         prog.validate();
 
         verifyReserial(model, plugin);
@@ -85,7 +86,7 @@ describe("Actual Plugins", () => {
         const model = new Model(plugin);
         model.makeEdge(undefined, model.makeNode(), model.makeNode());
 
-        const prog = plugin.makeProgram(model);
+        const prog = await plugin.makeProgram(model);
         prog.validate();
 
         verifyReserial(model, plugin);
@@ -96,7 +97,7 @@ describe("Actual Plugins", () => {
         const model = new Model(plugin);
         model.makeEdge(undefined, model.makeNode(), model.makeNode());
 
-        const prog = plugin.makeProgram(model);
+        const prog = await plugin.makeProgram(model);
         prog.validate();
 
         verifyReserial(model, plugin);
@@ -107,21 +108,23 @@ describe("Actual Plugins", () => {
         const model = new Model(plugin);
         model.makeEdge(undefined, model.makeNode(), model.makeNode());
 
-        const prog = plugin.makeProgram(model);
+        const prog = await plugin.makeProgram(model);
         prog.validate();
 
         verifyReserial(model, plugin);
     });
-    it("loads BFS", async () => {
+    it("runs BFS", async () => {
         const plugin = await loadPlugin("test-support", "bfs");
 
         const model = new Model(plugin);
         const n1 = node("q1", model);
         model.makeEdge(undefined, n1, node("q2", model));
 
-        const prog = plugin.makeProgram(model);
-        prog.validate();
+        const prog = (await plugin.makeProgram(model)) as TypescriptProgram;
 
+        expect(plugin.toNatural()(prog.model.environment.values.get(n1.uuid)!)).to.instanceof(plugin.implementation.Node);
+
+        prog.validate();
         const res = await prog.run([prog.model.environment.values.get(n1.uuid)!]);
         const result = res.result as Value.ArrayObject;
         expect(result).to.instanceof(Value.ArrayObject);

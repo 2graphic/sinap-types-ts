@@ -89,9 +89,8 @@ describe("natural", () => {
         const uwa = fromValue(a);
         expect(uwa.b.a).to.equal(uwa);
         expect(uwa.b).to.equal(uwa.b.a.b);
-        // TODO: make this next thing pass
-        // const uwb = fromValue(b);
-        // expect(uwb.a).to.equal(uwa);
+        const uwb = fromValue(b);
+        expect(uwb.a).to.equal(uwa);
     });
     it("unwraps intesections", () => {
         const env = new Value.Environment();

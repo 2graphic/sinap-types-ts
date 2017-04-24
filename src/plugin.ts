@@ -46,23 +46,21 @@ export class TypescriptPlugin implements Core.Plugin {
     naturalMapping: [Type.CustomObject, Function][];
     inverseNaturalMapping: Map<Function, Type.CustomObject>;
     public naturalStateType: any;
-    public toNatural: (value: Value.Value) => any;
-    public toValue: (value: any) => Value.Value;
+    public toNatural: () => (value: Value.Value) => any;
+    public toValue: (env: Value.Environment) => (value: any, knownType?: Type.Type) => Value.Value;
 
     readonly types: Core.PluginTypes;
     private environment: TypeScriptTypeEnvironment;
     private typescriptCaller: TypescriptMethodCaller = {
         call: (value, key, args) => {
-            const natural = this.toNatural(value);
+            const natural = this.toNatural()(value);
             const result = natural[key](...args);
-            const convert = naturalToValue(value.environment, this.inverseNaturalMapping);
-            return convert(result);
+            return this.toValue(value.environment)(result);
         },
         callGetter: (value, key) => {
-            const natural = this.toNatural(value);
+            const natural = this.toNatural()(value);
             const result = natural.__lookupGetter__(key).call(natural);
-            const convert = naturalToValue(value.environment, this.inverseNaturalMapping);
-            return convert(result);
+            return this.toValue(value.environment)(result);
         },
     };
     implementation: any;
@@ -140,7 +138,7 @@ export class TypescriptPlugin implements Core.Plugin {
         this.setupTransformers();
     }
 
-    makeProgram(model: Core.Model): Core.Program {
+    async makeProgram(model: Core.Model): Promise<Core.Program> {
         return new TypescriptProgram(model, this);
     }
 
@@ -163,7 +161,8 @@ export class TypescriptPlugin implements Core.Plugin {
             addRule(edgeType.pluginType);
         }
 
-        this.toNatural = valueToNatural(new Map(this.naturalMapping));
+        this.toNatural = () => valueToNatural(new Map(this.naturalMapping));
+        this.toValue = (env) => naturalToValue(env, this.inverseNaturalMapping);
         this.inverseNaturalMapping = new Map(this.naturalMapping.map((([a, b]) => [b, a] as [Function, Type.CustomObject])));
     }
 }
