@@ -103,13 +103,14 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
         }
     }
 
-    const transformed = transformation.get(v);
-    if (transformed) {
-        return transformed;
-    }
-
     const typeOfV = typeof v;
     if (typeOfV === "object") {
+        if (v) {
+            const transformed = transformation.get(v);
+            if (transformed) {
+                return transformed;
+            }
+        }
         if (Array.isArray(v)) {
             let expectedParameterType: Type.Type | undefined = undefined;
             if (knownType instanceof Value.TupleType) {

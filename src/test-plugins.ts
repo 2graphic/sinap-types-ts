@@ -72,10 +72,24 @@ describe("Actual Plugins", () => {
         const plugin = await loadPlugin("test-support", "dfa");
 
         const model = new Model(plugin);
-        model.makeEdge(undefined, model.makeNode(), model.makeNode());
+        const n1 = model.makeNode();
+        const n2 = model.makeNode();
+        n1.set("isStartState", new Value.Primitive(new Type.Primitive("boolean"), model.environment, true));
+        n2.set("isAcceptState", new Value.Primitive(new Type.Primitive("boolean"), model.environment, true));
+        const edge = model.makeEdge(undefined, n1, n2);
+        edge.set("symbol", new Value.Primitive(new Type.Primitive("string"), model.environment, "1"));
 
         const prog = await plugin.makeProgram(model);
         prog.validate();
+        const input = new Value.Primitive(new Type.Primitive("string"), model.environment, "1");
+        const runResult = await prog.run([input]);
+        const res1 = runResult.result as Value.Primitive;
+        expect(res1).to.instanceof(Value.Primitive);
+        expect(res1.value).to.equal(true);
+        input.value = "0";
+        const res2 = (await prog.run([input])).result as Value.Primitive;
+        expect(res2).to.instanceof(Value.Primitive);
+        expect(res2.value).to.equal(false);
 
         verifyReserial(model, plugin);
 

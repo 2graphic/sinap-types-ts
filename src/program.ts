@@ -5,13 +5,7 @@ import { Model } from "sinap-core";
 
 
 export class TypescriptProgram implements Core.Program {
-    toValue: (value: any, knownType?: Type.Type | undefined) => Value.Value;
-    toNatural: (value: Value.Value) => any;
-
     constructor(readonly model: Model, public plugin: TypescriptPlugin) {
-        this.toNatural = this.plugin.toNatural();
-        this.toValue = this.plugin.toValue(this.model.environment);
-
         const nodes = new Value.ArrayObject(new Value.ArrayType(plugin.types.nodes), this.model.environment);
         const edges = new Value.ArrayObject(new Value.ArrayType(plugin.types.edges), this.model.environment);
 
@@ -48,9 +42,11 @@ export class TypescriptProgram implements Core.Program {
             }
         });
 
+        const toValue = this.plugin.toValue(this.model.environment);
+        const toNatural = this.plugin.toNatural();
 
-        const unwrappedGraph = this.toNatural(this.model.graph);
-        const unwrappedInputs = a.map(v => this.toNatural(v));
+        const unwrappedGraph = toNatural(this.model.graph);
+        const unwrappedInputs = a.map(v => toNatural(v));
 
         let state: any;
         try {
@@ -61,7 +57,7 @@ export class TypescriptProgram implements Core.Program {
         const steps: Value.CustomObject[] = [];
 
         while (state instanceof this.plugin.naturalStateType) {
-            steps.push(this.toValue(state, this.plugin.types.state) as Value.CustomObject);
+            steps.push(toValue(state, this.plugin.types.state) as Value.CustomObject);
             try {
                 state = this.plugin.implementation.step(state);
             } catch (err) {
@@ -74,14 +70,14 @@ export class TypescriptProgram implements Core.Program {
         if (this.plugin.types.result instanceof Type.Union) FoundAResult: {
             for (const type of this.plugin.types.result.types) {
                 try {
-                    res = this.toValue(state, type);
+                    res = toValue(state, type);
                     break FoundAResult;
                 } catch (err) {
                 }
             }
             throw new Error("no types worked");
         } else {
-            res = this.toValue(state, this.plugin.types.result);
+            res = toValue(state, this.plugin.types.result);
         }
 
         return { steps: steps, result: res };
