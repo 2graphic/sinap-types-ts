@@ -7,10 +7,8 @@ import { Model } from "sinap-core";
 export class TypescriptProgram implements Core.Program {
     toValue: (value: any, knownType?: Type.Type | undefined) => Value.Value;
     toNatural: (value: Value.Value) => any;
-    readonly model: Model;
 
-    constructor(modelIn: Model, public plugin: TypescriptPlugin) {
-        this.model = Model.fromSerial(modelIn.serialize(), plugin);
+    constructor(readonly model: Model, public plugin: TypescriptPlugin) {
         this.toNatural = this.plugin.toNatural();
         this.toValue = this.plugin.toValue(this.model.environment);
 

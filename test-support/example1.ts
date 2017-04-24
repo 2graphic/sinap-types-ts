@@ -63,3 +63,11 @@ type interA = SomethingWithAnA & D;
 class SelfReferentialObject {
     s: SelfReferentialObject;
 }
+
+
+function hidden(a: any, key: string) { }
+
+class DecoratedHidden {
+    @hidden
+    a: string;
+}

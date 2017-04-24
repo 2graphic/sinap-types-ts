@@ -118,11 +118,11 @@ describe("Actual Plugins", () => {
 
         const model = new Model(plugin);
         const n1 = node("q1", model);
-        model.makeEdge(undefined, n1, node("q2", model));
+        const n2 = node("q2", model);
+        model.makeEdge(undefined, n1, n2);
+        model.makeEdge(undefined, n2, n1);
 
         const prog = (await plugin.makeProgram(model)) as TypescriptProgram;
-
-        expect(plugin.toNatural()(prog.model.environment.values.get(n1.uuid)!)).to.instanceof(plugin.implementation.Node);
 
         prog.validate();
         const res = await prog.run([prog.model.environment.values.get(n1.uuid)!]);

@@ -17,6 +17,11 @@ function flatteningDeepCopy(rep: any, env: Value.Environment, map: Map<Value.Val
 }
 
 function fromValueInner(value: Value.Value, map: Map<Value.Value, any>): any {
+    const alreadyConverted = map.get(value);
+    if (alreadyConverted) {
+        return alreadyConverted;
+    }
+
     if (value instanceof Value.Union) {
         return fromValueInner(value.value, map);
     }

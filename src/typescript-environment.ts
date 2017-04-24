@@ -202,9 +202,16 @@ export class TypeScriptTypeEnvironment {
                 const valueDeclaration = element.valueDeclaration;
                 if (valueDeclaration) {
                     const modifiers = valueDeclaration.modifiers;
-                    if (modifiers) {
-                        visibility.set(key, modifiers.filter(x => x.kind === ts.SyntaxKind.PrivateKeyword).length === 0);
+                    let visible = true;
+
+                    if (valueDeclaration.decorators && valueDeclaration.decorators.length > 0) {
+                        visible = visible && valueDeclaration.decorators.filter(d => d.expression.getText() === "hidden").length === 0;
                     }
+
+                    if (modifiers) {
+                        visible = visible && modifiers.filter(x => x.kind === ts.SyntaxKind.PrivateKeyword).length === 0;
+                    }
+                    visibility.set(key, visible);
                 }
 
             });

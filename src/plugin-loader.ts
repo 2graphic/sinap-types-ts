@@ -31,7 +31,7 @@ function readFile(file: string): Promise<string> {
 
 const options: ts.CompilerOptions = {
     noEmitOnError: false,
-
+    experimentalDecorators: true,
     noImplicitAny: true,
     target: ts.ScriptTarget.ES2016,
     removeComments: false,

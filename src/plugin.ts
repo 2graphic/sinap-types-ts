@@ -139,7 +139,7 @@ export class TypescriptPlugin implements Core.Plugin {
     }
 
     async makeProgram(model: Core.Model): Promise<Core.Program> {
-        return new TypescriptProgram(model, this);
+        return new TypescriptProgram(Core.Model.fromSerial(model.serialize(), this), this);
     }
 
     private setupTransformers() {

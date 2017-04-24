@@ -8,6 +8,7 @@ describe("TS converter", () => {
         const options: ts.CompilerOptions = {
             noEmitOnError: false,
             noImplicitAny: true,
+            experimentalDecorators: true,
             target: ts.ScriptTarget.ES2016,
             removeComments: false,
         };
@@ -118,6 +119,9 @@ describe("TS converter", () => {
 
         const SelfReferentialObject = env.lookupType("SelfReferentialObject", file) as Type.CustomObject;
         expect(SelfReferentialObject.members.get("s")).to.equals(SelfReferentialObject);
+
+        const DecoratedHidden = env.lookupType("DecoratedHidden", file) as Type.CustomObject;
+        expect(DecoratedHidden.isVisible("a")).to.be.false;
     });
 
     it("converts example2", () => {
