@@ -4,7 +4,7 @@ import * as path from "path";
 import { expect } from "chai";
 import { Type, Value } from "sinap-types";
 import { TypescriptPlugin } from "./plugin";
-import { imap } from "sinap-types/lib/util";
+import { imap, ifilter } from "sinap-types/lib/util";
 import { TypescriptProgram } from "./program";
 
 function verifyReserial(m1: Model, p: Plugin) {
@@ -118,12 +118,27 @@ describe("Actual Plugins", () => {
     });
     it("loads Circuits", async () => {
         const plugin = await loadPlugin("test-support", "circuits");
+        const InputGate = ifilter(t => t.pluginType.name === "InputGate", plugin.types.nodes.types)[Symbol.iterator]().next().value;
+        const OutputGate = ifilter(t => t.pluginType.name === "OutputGate", plugin.types.nodes.types)[Symbol.iterator]().next().value;
+        const BooleanT = new Type.Primitive("boolean");
 
         const model = new Model(plugin);
-        model.makeEdge(undefined, model.makeNode(), model.makeNode());
+        const source = model.makeNode(InputGate);
+        const sink = model.makeNode(OutputGate);
+        model.makeEdge(undefined, source, sink);
 
         const prog = await plugin.makeProgram(model);
         prog.validate();
+        const input = new Value.MapObject(new Value.MapType(InputGate, BooleanT), prog.model.environment);
+        const progSource = prog.model.environment.values.get(source.uuid)!;
+        const progSink = prog.model.environment.values.get(sink.uuid)!;
+        input.set(progSource, new Value.Primitive(BooleanT, prog.model.environment, false));
+        const res = await prog.run([input]);
+        const result = res.result as Value.MapObject;
+        expect(result).to.instanceof(Value.MapObject);
+        expect([...result].length).to.equal(1);
+        expect(result.get(progSink)).to.instanceof(Value.Primitive);
+        expect((result.get(progSink) as Value.Primitive).value).to.equal(false);
 
         verifyReserial(model, plugin);
     });
