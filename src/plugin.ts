@@ -42,6 +42,22 @@ function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
     return u;
 }
 
+function getResultType(type: Type.CustomObject | Type.Intersection, key: string) {
+    if (type instanceof Type.Intersection) {
+        const methodTypeI = ifilter(ty => ty.methods.has(key), type.types)[Symbol.iterator]().next();
+        if (methodTypeI.done) {
+            throw new Error(`no methods found called ${key}`);
+        }
+        return methodTypeI.value.methods.get(key)!.returnType;
+    } else {
+        const t = type.methods.get(key);
+        if (!t) {
+            throw new Error(`no methods found called ${key}`);
+        }
+        return t.returnType;
+    }
+}
+
 export class TypescriptPlugin implements Core.Plugin {
     naturalMapping: [Type.CustomObject, Function][];
     inverseNaturalMapping: Map<Function, Type.CustomObject>;
@@ -52,15 +68,23 @@ export class TypescriptPlugin implements Core.Plugin {
     readonly types: Core.PluginTypes;
     private environment: TypeScriptTypeEnvironment;
     private typescriptCaller: TypescriptMethodCaller = {
-        call: (value, key, args) => {
+        call: (value, key, args): Value.Value | void => {
             const natural = this.toNatural()(value);
             const result = natural[key](...args);
-            return this.toValue(value.environment)(result);
+            const t = getResultType(value.type, key);
+            if (t !== null) {
+                return this.toValue(value.environment)(result, t);
+            }
         },
         callGetter: (value, key) => {
             const natural = this.toNatural()(value);
             const result = natural.__lookupGetter__(key).call(natural);
-            return this.toValue(value.environment)(result);
+            const t = getResultType(value.type, key);
+            if (t !== null) {
+                return this.toValue(value.environment)(result, t);
+            } else {
+                throw new Error("Getters cannot return null");
+            }
         },
     };
     implementation: any;

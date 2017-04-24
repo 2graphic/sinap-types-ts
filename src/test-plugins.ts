@@ -120,10 +120,17 @@ describe("Actual Plugins", () => {
         const plugin = await loadPlugin("test-support", "circuits");
         const InputGate = ifilter(t => t.pluginType.name === "InputGate", plugin.types.nodes.types)[Symbol.iterator]().next().value;
         const OutputGate = ifilter(t => t.pluginType.name === "OutputGate", plugin.types.nodes.types)[Symbol.iterator]().next().value;
+        const OrGate = ifilter(t => t.pluginType.name === "OrGate", plugin.types.nodes.types)[Symbol.iterator]().next().value;
         const BooleanT = new Type.Primitive("boolean");
 
         const model = new Model(plugin);
         const source = model.makeNode(InputGate);
+        const orGate = model.makeNode(OrGate);
+        const pts = orGate.call("anchorPoints") as Value.ArrayObject;
+        expect(pts).to.instanceof(Value.ArrayObject);
+        expect(pts.index(1)).to.instanceof(Value.Record);
+        expect(((pts.index(1) as Value.Record).value.x as Value.Primitive).value).to.be.lessThan(-3);
+
         const sink = model.makeNode(OutputGate);
         model.makeEdge(undefined, source, sink);
 
