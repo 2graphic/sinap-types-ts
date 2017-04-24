@@ -111,6 +111,26 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
                 return transformed;
             }
         }
+        if (v instanceof Map) {
+            if (knownType) {
+                if (!(knownType instanceof Value.MapType)) {
+                    throw new Error(`expecting a ${knownType.name} but got a Map`);
+                } else {
+                    const value = new Value.MapObject(knownType, env);
+                    for (const [mk, mv] of v) {
+                        const vk = toValueInner(mk, env, typeMap, transformation, knownType.keyType);
+                        const vv = toValueInner(mv, env, typeMap, transformation, knownType.valueType);
+                        value.set(vk, vv);
+                    }
+                    return value;
+                }
+            } else {
+                throw new Error("TODO: Maps without type hinting");
+            }
+        }
+        if (v instanceof Set) {
+            throw new Error("TODO: implement returning Sets");
+        }
         if (Array.isArray(v)) {
             let expectedParameterType: Type.Type | undefined = undefined;
             if (knownType instanceof Value.TupleType) {
