@@ -33,54 +33,59 @@ export class TypescriptProgram implements Core.Program {
     };
 
     async run(a: Value.Value[]): Promise<{ steps: Value.CustomObject[], result?: Value.Value, error?: Value.Primitive }> {
-        if (a.length !== this.plugin.types.arguments.length) {
-            throw new Error("Program.run: incorrect arity");
-        }
-        a.forEach((v, i) => {
-            if (!Type.isSubtype(v.type, this.plugin.types.arguments[i])) {
-                throw new Error(`Program.run argument at index: ${i} is of incorrect type`);
-            }
-        });
-
-        const toValue = this.plugin.toValue(this.model.environment);
-        const toNatural = this.plugin.toNatural();
-
-        const unwrappedGraph = toNatural(this.model.graph);
-        const unwrappedInputs = a.map(v => toNatural(v));
-
-        let state: any;
+        this.model.environment.beginTransaction();
         try {
-            state = this.plugin.implementation.start(unwrappedGraph, ...unwrappedInputs);
-        } catch (err) {
-            return { steps: [], error: Value.makePrimitive(this.model.environment, err) };
-        }
-        const steps: Value.CustomObject[] = [];
-
-        while (state instanceof this.plugin.naturalStateType) {
-            steps.push(toValue(state, this.plugin.types.state) as Value.CustomObject);
-            try {
-                state = this.plugin.implementation.step(state);
-            } catch (err) {
-                return { steps: steps, error: Value.makePrimitive(this.model.environment, err) };
+            if (a.length !== this.plugin.types.arguments.length) {
+                throw new Error("Program.run: incorrect arity");
             }
-        }
+            a.forEach((v, i) => {
+                if (!Type.isSubtype(v.type, this.plugin.types.arguments[i])) {
+                    throw new Error(`Program.run argument at index: ${i} is of incorrect type`);
+                }
+            });
 
-        // TODO: fixup
-        let res: Value.Value;
-        if (this.plugin.types.result instanceof Type.Union) FoundAResult: {
-            for (const type of this.plugin.types.result.types) {
+            const toValue = this.plugin.toValue(this.model.environment);
+            const toNatural = this.plugin.toNatural();
+
+            const unwrappedGraph = toNatural(this.model.graph);
+            const unwrappedInputs = a.map(v => toNatural(v));
+
+            let state: any;
+            try {
+                state = this.plugin.implementation.start(unwrappedGraph, ...unwrappedInputs);
+            } catch (err) {
+                return { steps: [], error: Value.makePrimitive(this.model.environment, err) };
+            }
+            const steps: Value.CustomObject[] = [];
+
+            while (state instanceof this.plugin.naturalStateType) {
+                steps.push(toValue(state, this.plugin.types.state) as Value.CustomObject);
                 try {
-                    res = toValue(state, type);
-                    break FoundAResult;
+                    state = this.plugin.implementation.step(state);
                 } catch (err) {
+                    return { steps: steps, error: Value.makePrimitive(this.model.environment, err) };
                 }
             }
-            throw new Error("no types worked");
-        } else {
-            res = toValue(state, this.plugin.types.result);
-        }
 
-        return { steps: steps, result: res };
+            // TODO: fixup
+            let res: Value.Value;
+            if (this.plugin.types.result instanceof Type.Union) FoundAResult: {
+                for (const type of this.plugin.types.result.types) {
+                    try {
+                        res = toValue(state, type);
+                        break FoundAResult;
+                    } catch (err) {
+                    }
+                }
+                throw new Error("no types worked");
+            } else {
+                res = toValue(state, this.plugin.types.result);
+            }
+
+            return { steps: steps, result: res };
+        } finally {
+            this.model.environment.commitTransaction();
+        }
     }
 
     validate() {
