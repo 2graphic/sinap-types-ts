@@ -6,6 +6,7 @@ import { CompilationResult } from "./plugin-loader";
 import { TypeScriptTypeEnvironment, TypescriptMethodCaller } from "./typescript-environment";
 import { TypescriptProgram } from "./program";
 import { valueToNatural, naturalToValue } from "./natural";
+import { ElementValue } from "sinap-core";
 
 const boolUnion = new Type.Union([new Type.Literal(true), new Type.Literal(false)]);
 
@@ -20,7 +21,7 @@ function definePlugin(script: string) {
     return scope;
 }
 
-function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
+export function mergeUnions(predicate: (t: Type.Type) => boolean, ...ts: Type.Type[]) {
     function* typesGetter() {
         for (const t of ts) {
             if (t instanceof Type.Union) {
@@ -31,9 +32,9 @@ function mergeUnions(typeToRemove: Type.Type, ...ts: Type.Type[]) {
         }
     }
 
-    const types = minimizeTypeArray(ifilter((t) => !Type.isSubtype(t, typeToRemove), typesGetter()));
-    if (types.length === 1) {
-        return types[0];
+    const types = minimizeTypeArray(ifilter(predicate, typesGetter()));
+    if (types.size === 1) {
+        return types.values().next().value;
     }
     const u = new Type.Union(types);
     if (u.equals(boolUnion)) {
@@ -61,6 +62,16 @@ function getResultType(type: Type.CustomObject | Type.Intersection, key: string)
 export class TypescriptPlugin implements Core.Plugin {
     naturalMapping: [Type.CustomObject, Function][];
     inverseNaturalMapping: Map<Function, Type.CustomObject>;
+
+    validateEdge(src?: ElementValue, dst?: ElementValue, like?: ElementValue): boolean {
+        if (!this.implementation.validateEdge) {
+            return true;
+        }
+        const toNatural = this.toNatural();
+        const [s, d, l] = [src, dst, like].map((e) => !e ? undefined : toNatural(e));
+        return this.implementation.validateEdge(s, d, l);
+    }
+
     public naturalStateType: any;
     public toNatural: () => (value: Value.Value) => any;
     public toValue: (env: Value.Environment) => (value: any, knownType?: Type.Type) => Value.Value;
@@ -126,7 +137,7 @@ export class TypescriptPlugin implements Core.Plugin {
             throw new Error("don't overload the step function");
         }
         const argumentTypes = startTypes[0][0].slice(1);
-        const resultType = mergeUnions(stateType, startTypes[0][1], stepTypes[0][1]);
+        const resultType = mergeUnions((t) => !Type.isSubtype(t, stateType), startTypes[0][1], stepTypes[0][1]);
 
         const typesToUnion = (kind: string) => {
             const type = this.environment.lookupType(kind, pluginSourceFile);

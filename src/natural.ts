@@ -1,6 +1,7 @@
 
 import { Value, Type } from "sinap-types";
 import { deepCopy, ifilter } from "sinap-types/lib/util";
+import { mergeUnions } from "./plugin";
 
 function flatteningDeepCopy(rep: any, env: Value.Environment, map: Map<Value.Value, any>, dest: any) {
     return deepCopy(rep, (reference) => {
@@ -153,12 +154,14 @@ function toValueInner(v: any, env: Value.Environment, typeMap: Map<any, Type.Typ
             if (expectedParameterType) {
                 type = expectedParameterType;
             } else {
-                type = new Type.Union(types);
-                values = values.map(val => {
-                    const valU = new Value.Union(type as Type.Union, env);
-                    valU.value = val;
-                    return valU;
-                });
+                type = mergeUnions(() => true, new Type.Union(types));
+                if (type instanceof Type.Union) {
+                    values = values.map(val => {
+                        const valU = new Value.Union(type as Type.Union, env);
+                        valU.value = val;
+                        return valU;
+                    });
+                }
             }
 
             const value = env.make(new Value.ArrayType(type)) as Value.ArrayObject;

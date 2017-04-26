@@ -220,9 +220,8 @@ describe("natural", () => {
         const env = new Value.Environment();
         const value = toValueInner(["test"], env, new Map(), new Map());
         expect(value).to.instanceof(Value.ArrayObject);
-        expect((value as Value.ArrayObject).index(0)).to.instanceof(Value.Union);
-        expect(((value as Value.ArrayObject).index(0) as Value.Union).value).to.instanceof(Value.Primitive);
-        expect((((value as Value.ArrayObject).index(0) as Value.Union).value as Value.Primitive).value).to.equal("test");
+        expect((value as Value.ArrayObject).index(0)).to.instanceof(Value.Primitive);
+        expect(((value as Value.ArrayObject).index(0) as Value.Primitive).value).to.equal("test");
     });
 
     it("wraps up cyclic", () => {

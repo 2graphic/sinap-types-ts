@@ -1,5 +1,5 @@
 import { TypescriptPluginLoader } from ".";
-import { getPluginInfo, Model, Plugin } from "sinap-core";
+import { getPluginInfo, Model, Plugin, validateEdge } from "sinap-core";
 import * as path from "path";
 import { expect } from "chai";
 import { Type, Value } from "sinap-types";
@@ -70,6 +70,7 @@ describe("Actual Plugins", () => {
     });
     it("loads DFA", async () => {
         const plugin = await loadPlugin("test-support", "dfa");
+        expect(plugin.types.result).to.instanceof(Type.Primitive);
 
         const model = new Model(plugin);
         const n1 = model.makeNode();
@@ -123,6 +124,8 @@ describe("Actual Plugins", () => {
         const OrGate = ifilter(t => t.pluginType.name === "OrGate", plugin.types.nodes.types)[Symbol.iterator]().next().value;
         const BooleanT = new Type.Primitive("boolean");
 
+        expect(plugin.types.result).to.instanceof(Value.MapType);
+
         const model = new Model(plugin);
         const source = model.makeNode(InputGate);
         const orGate = model.makeNode(OrGate);
@@ -130,6 +133,9 @@ describe("Actual Plugins", () => {
         expect(pts).to.instanceof(Value.ArrayObject);
         expect(pts.index(1)).to.instanceof(Value.Record);
         expect(((pts.index(1) as Value.Record).value.x as Value.Primitive).value).to.be.lessThan(-3);
+
+        expect(validateEdge(plugin, orGate, source, undefined)).to.be.false;
+        expect(validateEdge(plugin, source, orGate, undefined)).to.be.true;
 
         const sink = model.makeNode(OutputGate);
         model.makeEdge(undefined, source, sink);
