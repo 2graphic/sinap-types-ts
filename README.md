@@ -80,7 +80,7 @@ The `package.json` file is modeled after the npm `package.json` standard. It req
 </dl>
 
 ## Interpreter Code
-The `interpreter.ts` file is the entry point for the plugin. It defines types for nodes and edges, and implements a `start` and `step` function; a `State` type must also be defined in this file. For the full code of `interpreter.ts`, go [here](#interpreter.ts)
+The `interpreter.ts` file is the entry point for the plugin. It defines types for nodes and edges, and implements a `start` and `step` function; a `State` type must also be defined in this file. For the full code of `interpreter.ts`, go [here](#interpreterts).
 
 ### Type definitions
 All plugins must export the following types: `Nodes`, `Edges`, `Graph`, and `State`. `Nodes` and `Edges` can either be classes or unions of classes, `Graph` and `State` must be classes. Each of these classes can contain whatever fields they like. If they define certain special fields, they'll be constrained to match what sinap expects the fields to be.
