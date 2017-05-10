@@ -4,7 +4,6 @@ import * as ts from "typescript";
 import * as path from "path";
 import * as fs from "fs";
 import { CompilationResult } from "./plugin-loader";
-import { TypescriptPlugin } from "./plugin";
 
 const options: ts.CompilerOptions = {
     noEmitOnError: false,
@@ -63,7 +62,7 @@ process.on("message", async (message: any) => {
             // TODO: actually use AMD for cicular dependencies
             script = content;
         }
-        return readFile(pluginLocation).then((pluginScript) => {
+        await readFile(pluginLocation).then((pluginScript) => {
             const host = createCompilerHost(new Map([
                 ["plugin.ts", pluginScript]
             ]), options, emitter, appDirectory);
@@ -79,10 +78,14 @@ process.on("message", async (message: any) => {
             if (script === undefined) {
                 throw Error("failed to emit");
             }
+
             const compilationResult = new CompilationResult(script, results);
-            result ={
+            result = {
                 isErr: false,
-                result: new TypescriptPlugin(program, compilationResult, pluginInfo)
+                result: {
+                    compilationResult: compilationResult,
+                    program: program
+                }
             };
         });
     } catch (err) {

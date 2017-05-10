@@ -2,6 +2,7 @@ import * as ts from "typescript";
 import { Plugin, PluginLoader, PluginInfo, NodePromise } from "sinap-core";
 import * as child_process from "child_process";
 import * as path from "path";
+import { TypescriptPlugin } from "./plugin";
 
 export interface CompilationDiagnostics {
     global: ts.Diagnostic[];
@@ -28,7 +29,8 @@ export class TypescriptPluginLoader implements PluginLoader {
         cp.on("message", mess => {
             sentResult = true;
             if (mess.isErr) result.cb(mess.result, null as any);
-            else result.cb(null, mess.result);
+            else result.cb(null, new TypescriptPlugin(mess.result.program, mess.result.compilationResult, pluginInfo));
+            cp.kill();
         });
         cp.on("exit", (code, sig) => {
             if (!sentResult) result.cb(`Compile process crashed with code: ${code} and signal: ${sig}`, null as any);
