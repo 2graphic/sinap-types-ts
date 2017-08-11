@@ -26,7 +26,10 @@ export class TypescriptPluginLoader implements PluginLoader {
         const cp = child_process.fork(path.join(__dirname, "compile"));
         const result = new NodePromise<Plugin>();
         let sentResult = false;
-        cp.on("message", mess => {
+        cp.on("message", strMess => {
+            // This should be relatively safe.
+            const mess = eval(`(${strMess})`);
+            console.log(mess);
             sentResult = true;
             if (mess.isErr) result.cb(mess.result, null as any);
             else result.cb(null, new TypescriptPlugin(mess.result.program, mess.result.compilationResult, pluginInfo));

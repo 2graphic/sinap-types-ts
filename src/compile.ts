@@ -4,6 +4,7 @@ import * as ts from "typescript";
 import * as path from "path";
 import * as fs from "fs";
 import { CompilationResult } from "./plugin-loader";
+import serialize = require("serialize-javascript");
 
 const options: ts.CompilerOptions = {
     noEmitOnError: false,
@@ -96,7 +97,7 @@ process.on("message", async (message: any) => {
     }
 
     try {
-        process.send!(result);
+        process.send!(serialize(result));
     } catch (err) {
         console.error(err);
     }
