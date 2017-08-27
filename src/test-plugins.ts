@@ -6,6 +6,7 @@ import { Type, Value } from "sinap-types";
 import { TypescriptPlugin } from "./plugin";
 import { imap, ifilter } from "sinap-types/lib/util";
 import { TypescriptProgram } from "./program";
+import child_process = require("child_process");
 
 function verifyReserial(m1: Model, p: Plugin) {
     const s1 = m1.serialize();
@@ -24,6 +25,17 @@ function node(label: string, model: Model) {
     return node;
 }
 
+function installSubmodules(dir: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        child_process.exec("npm install", {
+            cwd: path.join("test-support", dir)
+        }, error => {
+            if (error) reject(error);
+            else resolve();
+        });
+    });
+}
+
 describe("Actual Plugins", () => {
     const loader = new TypescriptPluginLoader();
     async function loadPlugin(...p: string[]) {
@@ -35,6 +47,16 @@ describe("Actual Plugins", () => {
         return plugin;
     }
 
+    it("loads submodules.", async () => {
+        await installSubmodules("subpackage");
+        const plugin = await loadPlugin("test-support", "subpackage");
+        const model = new Model(plugin);
+        const program = await plugin.makeProgram(model);
+        const result = await program.run([new Value.Primitive(new Type.Primitive("number"), model.environment, 1)]);
+
+        expect(result.error).to.be.undefined;
+        expect((result.result as Value.Primitive).value).to.equal(2);
+    }).timeout(0); // Disable timeout since install could take a while.
 
     it("runs Turing machine", async () => {
         const plugin = await loadPlugin("test-support", "turing-machine");
