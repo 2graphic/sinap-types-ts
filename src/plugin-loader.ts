@@ -1,7 +1,6 @@
 import * as ts from "typescript";
 import { Plugin, PluginLoader, PluginInfo } from "sinap-core";
 import { TypescriptPlugin } from "./plugin";
-// import resolve = require("resolve");
 import * as fs from "fs";
 import * as path from "path";
 
