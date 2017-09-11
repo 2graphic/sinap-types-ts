@@ -1,5 +1,5 @@
 import { Type, Value } from "sinap-types";
-import * as rewire from "rewire";
+import rewire = require("rewire");
 
 const natural = rewire("./natural");
 const fromValueInner = natural.__get__('fromValueInner');

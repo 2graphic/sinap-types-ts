@@ -7,13 +7,15 @@ import { TypeScriptTypeEnvironment, TypescriptMethodCaller } from "./typescript-
 import { TypescriptProgram } from "./program";
 import { valueToNatural, naturalToValue } from "./natural";
 import { ElementValue } from "sinap-core";
+import resolve = require("resolve");
 
 const boolUnion = new Type.Union([new Type.Literal(true), new Type.Literal(false)]);
 
-function definePlugin(script: string) {
+function definePlugin(script: string, require: (name: string) => any) {
     const scope = {};
-    function define(_module: string, _requirements: string[], implement: (require: undefined, exports: any) => void) {
-        implement(undefined, scope);
+    function define(_module: string, _requirements: string[], implement: (...deps: any[]) => void) {
+        const args = _requirements.map(require);
+        implement(...args);
     }
     define;
     // tslint:disable-next-line no-eval
@@ -120,7 +122,22 @@ export class TypescriptPlugin implements Core.Plugin {
         this.environment = new TypeScriptTypeEnvironment(checker, this.typescriptCaller);
         const pluginSourceFile = program.getSourceFile("plugin.ts");
 
-        this.implementation = definePlugin(compilationResult.js);
+        const implementation = {};
+        function pluginRequire(id: string): any {
+            if (id === "require") {
+                return pluginRequire;
+            } else if (id === "exports") {
+                return implementation;
+            } else {
+                const result = resolve.sync(id, {
+                    basedir: pluginInfo.interpreterInfo.directory
+                });
+
+                return require(result);
+            }
+        }
+        definePlugin(compilationResult.js, pluginRequire);
+        this.implementation = implementation;
 
         const pluginGraphType = this.environment.lookupType("Graph", pluginSourceFile);
         if (!(pluginGraphType instanceof Type.CustomObject)) {

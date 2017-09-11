@@ -1,0 +1,26 @@
+{
+  "name": "subpackage",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "sinap": {
+    "kind": [
+      "test",
+      "subpackage"
+    ],
+    "plugin-file": "interpreter.ts",
+    "description": "A plugin which uses its own node_modules.",
+    "loader": "typescript"
+  },
+  "dependencies": {
+    "lodash": "~4.17.4"
+  },
+  "devDependencies": {
+    "@types/lodash": "~4.14.74"
+  }
+}

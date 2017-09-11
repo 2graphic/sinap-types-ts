@@ -67,7 +67,7 @@ export class TypescriptPluginLoader implements PluginLoader {
         return readFile(pluginLocation).then((pluginScript) => {
             const host = createCompilerHost(new Map([
                 ["plugin.ts", pluginScript]
-            ]), options, emitter, this.appDirectory);
+            ]), pluginInfo.interpreterInfo.directory, options, emitter, this.appDirectory);
 
             const program = ts.createProgram(["plugin.ts"], options, host);
             // TODO: only compute if asked for.
@@ -86,16 +86,18 @@ export class TypescriptPluginLoader implements PluginLoader {
     }
 }
 
-function createCompilerHost(files: Map<string, string>, options: ts.CompilerOptions, emit: (name: string, content: string) => void, appDirectory?: string): ts.CompilerHost {
+function createCompilerHost(files: Map<string, string>, pluginDir: string, options: ts.CompilerOptions, emit: (name: string, content: string) => void, appDirectory?: string): ts.CompilerHost {
     return {
         getSourceFile: (fileName): ts.SourceFile => {
             let source = files.get(fileName);
             if (!source) {
                 // if we didn't bundle the source file, maybe it's a lib?
                 if (fileName.indexOf("/") !== -1) {
-                    throw Error("no relative/absolute paths here");
+                    // Should probably put a security check here.
+                    source = fs.readFileSync(fileName, "utf8");
+                } else {
+                    source = fs.readFileSync(path.join(appDirectory ? appDirectory : ".", "node_modules", "typescript", "lib", fileName), "utf8");
                 }
-                source = fs.readFileSync(path.join(appDirectory ? appDirectory : ".", "node_modules", "typescript", "lib", fileName), "utf8");
             }
 
             // any to suppress strict error about undefined
@@ -109,15 +111,13 @@ function createCompilerHost(files: Map<string, string>, options: ts.CompilerOpti
         getDefaultLibFileName: () => {
             return "lib.es2016.d.ts";
         },
-        useCaseSensitiveFileNames: () => false,
+        useCaseSensitiveFileNames: () => true,
         getCanonicalFileName: fileName => fileName,
-        getCurrentDirectory: () => "",
+        getCurrentDirectory: () => pluginDir,
         getNewLine: () => "\n",
-        fileExists: (fileName): boolean => {
-            return files.has(fileName);
-        },
-        readFile: () => "",
-        directoryExists: () => true,
-        getDirectories: () => []
+        fileExists: ts.sys.fileExists,
+        readFile: ts.sys.readFile,
+        directoryExists: ts.sys.directoryExists,
+        getDirectories: ts.sys.readDirectory
     };
 }
