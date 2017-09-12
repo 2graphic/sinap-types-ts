@@ -29,7 +29,6 @@ export class TypescriptPluginLoader implements PluginLoader {
         cp.on("message", strMess => {
             // This should be relatively safe.
             const mess = eval(`(${strMess})`);
-            console.log(mess);
             sentResult = true;
             if (mess.isErr) result.cb(mess.result, null as any);
             else result.cb(null, new TypescriptPlugin(mess.result.program, mess.result.compilationResult, pluginInfo));
