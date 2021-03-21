@@ -89,7 +89,7 @@ export class TypescriptPlugin implements Core.Plugin {
         },
         callGetter: (value, key) => {
             const natural = this.toNatural()(value);
-            const result = natural.__lookupGetter__(key).call(natural);
+            const result = Object.getOwnPropertyDescriptor(natural.__proto__, key)!.get!.call(natural);
             const t = getResultType(value.type, key);
             if (t !== null) {
                 return this.toValue(value.environment)(result, t);

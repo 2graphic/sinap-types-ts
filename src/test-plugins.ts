@@ -1,6 +1,7 @@
 import { TypescriptPluginLoader } from ".";
 import { getPluginInfo, Model, Plugin, validateEdge } from "sinap-core";
 import * as path from "path";
+import * as fs from "fs";
 import { expect } from "chai";
 import { Type, Value } from "sinap-types";
 import { TypescriptPlugin } from "./plugin";
@@ -28,7 +29,7 @@ describe("Actual Plugins", () => {
     const loader = new TypescriptPluginLoader();
     async function loadPlugin(...p: string[]) {
         const info = await getPluginInfo(path.join(...p));
-        const plugin = await loader.load(info) as TypescriptPlugin;
+        const plugin = await loader.load(info, fs.readFileSync(info.interpreterInfo.interpreter).toString()) as TypescriptPlugin;
         expect(plugin.compilationResult.diagnostics.global.length).to.equal(0);
         expect(plugin.compilationResult.diagnostics.semantic.length).to.equal(0);
         expect(plugin.compilationResult.diagnostics.syntactic.length).to.equal(0);

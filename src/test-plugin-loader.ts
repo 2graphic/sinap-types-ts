@@ -4,13 +4,14 @@ import { expect } from "chai";
 import { Model, Plugin, getPluginInfo } from "sinap-core";
 import { valueToNatural } from "./natural";
 import * as path from "path";
+import * as fs from "fs";
 
 describe("Load Plugins", () => {
     const loader = new TypescriptPluginLoader();
 
     let dfa: Plugin;
     before(() => {
-        return getPluginInfo(path.join("test-support", "example-plugin")).then((info) => loader.load(info))
+        return getPluginInfo(path.join("test-support", "example-plugin")).then((info) => loader.load(info, fs.readFileSync(info.interpreterInfo.interpreter).toString()))
             .then((plugin) => {
                 dfa = plugin;
             });
